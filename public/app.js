@@ -2866,6 +2866,31 @@ window.addEventListener('popstate', (e) => {
   history.pushState(null, '');
 });
 
+// Coloque junto com o listener de popstate existente
+window._handleNativeBack = function() {
+  // 1. Voice sheet
+  if (window._voiceSheetBackHandler?.()) return true;
+
+  // 2. Qualquer sheet visível
+  const visibleSheet = document.querySelector(
+    '.bottom-sheet:not(.hidden), .sheet:not(.hidden), .voice-sheet:not(.hidden)'
+  );
+  if (visibleSheet) {
+    closeSheet(visibleSheet.id);
+    return true;
+  }
+
+  // 3. Screen que não seja today
+  const activeScreen = document.querySelector('.tab-screen.active');
+  if (activeScreen && activeScreen.id !== 'screen-today') {
+    switchTab('today');
+    return true;
+  }
+
+  // 4. Nada para fechar — Android pode perguntar se quer sair
+  return false;
+};
+
 // Estado inicial no histórico
 history.pushState(null, '');
 //#endregion
