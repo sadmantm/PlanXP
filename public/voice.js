@@ -802,11 +802,10 @@ async function stopAndProcess() {
 
   const genId   = `voice_gen_${Date.now()}`;
   const genCard = createVoiceGenCard(genId, '...');
-  const listNow = document.getElementById('list-now');
-  if (listNow) {
-    listNow.prepend(genCard);
-    document.getElementById('empty-now')?.classList.add('hidden');
-  }
+
+  // ← usa o overlay fixo em vez do list-now
+  const overlay = document.getElementById('gen-cards-overlay');
+  overlay.appendChild(genCard);
 
   fab.style.pointerEvents = 'none';
 
@@ -839,6 +838,7 @@ async function stopAndProcess() {
     fab.style.pointerEvents = '';
   }
 }
+
 
 function updateGenCard(card, text) {
   const sub = card.querySelector('.voice-gen-sub');

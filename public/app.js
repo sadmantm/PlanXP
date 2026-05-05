@@ -729,24 +729,6 @@ function applyPostpone(newDate) {
   closeSheet('postpone-sheet');
   _postponeTargetId = null;
 }
-
-// ── Preserva cards de geração de IA durante re-renders ──────────────────────
-function renderAllPreservingGenCards() {
-  const listNow = document.getElementById('list-now');
-  
-  // Captura todos os cards de geração presentes antes do re-render
-  const genCards = listNow
-    ? Array.from(listNow.querySelectorAll('.voice-generating-card'))
-    : [];
-
-  renderAll();
-
-  // Reinsere os cards no topo após o re-render
-  if (genCards.length && listNow) {
-    genCards.forEach(card => listNow.prepend(card));
-    document.getElementById('empty-now')?.classList.add('hidden');
-  }
-}
 //#endregion
 
 //#region Renderização - Today
@@ -1076,7 +1058,7 @@ function reactivateTask(id) {
   pushUndo({ tasks: state.tasks.map(t=>({...t})), totalXP: state.totalXP, todayXP: state.todayXP, coins: state.coins, tasksCompleted: state.tasksCompleted, streak: state.streak, lastActiveDate: state.lastActiveDate }, 'Tarefa reativada');
   save();
   saveDailyHistory();
-  renderAllPreservingGenCards();
+  renderAll();
 }
 
 // ── WIRE UP DOS BOTÕES (chame esta função no seu init / DOMContentLoaded) ──
@@ -1317,7 +1299,7 @@ async function convertToMission(id) {
 
   state.tasks.unshift(placeholder);
   save();
-  renderAllPreservingGenCards();
+  renderAll();
 
   const payload = {
     task: {
@@ -1365,7 +1347,7 @@ async function convertToMission(id) {
       const newCard = createMissionCard(state.tasks[idx]);
       loadingCard.replaceWith(newCard);
     } else {
-      renderAllPreservingGenCards();
+      renderAll();
     }
 
   } catch (err) {
@@ -1378,7 +1360,7 @@ async function convertToMission(id) {
         const errCard = createMissionCard(state.tasks[idx]);
         loadingCard.replaceWith(errCard);
       } else {
-        renderAllPreservingGenCards();
+        renderAll();
       }
     }
   }
@@ -1530,7 +1512,7 @@ function deleteSubtask(parentTaskId, stId) {
     task.status        = 'done';
     task.lastCompleted = todayISO();
     save();
-    renderAllPreservingGenCards(); // estado mudou para done — reconstrói o card corretamente
+    renderAll(); // estado mudou para done — reconstrói o card corretamente
     return;
   }
 
@@ -1702,7 +1684,7 @@ function addSubtaskToMission(missionTaskId, st) {
   if (task.status === 'done') task.status = 'todo';
 
   save();
-  renderAllPreservingGenCards();
+  renderAll();
 }
 
 // 9. fetchSubtaskSuggestions — chama o backend (nova rota)
@@ -2086,7 +2068,7 @@ function editSubtask(parentTaskId, stId, fields) {
   task.totalXP          = task.subtasks.reduce((s, x) => s + (x.xp || 0), 0);
   task.estimatedMinutes = task.subtasks.reduce((s, x) => s + (x.estimatedMinutes || 0), 0);
   save();
-  renderAllPreservingGenCards();
+  renderAll();
 }
 
 
@@ -2198,7 +2180,7 @@ function completeSubtask(parentTaskId, stId) {
     addTimelineItem('fa-solid fa-trophy', `Missão concluída: ${parent.missionTitle || parent.title}`);
     // Missão concluída: aí sim reconstrói pois o card some/muda de estado
     save();
-    renderAllPreservingGenCards();
+    renderAll();
     return;
   }
 
@@ -3023,7 +3005,7 @@ function saveTask() {
     return;
   }
 
-  renderAllPreservingGenCards();
+  renderAll();
 }
 
 function openAddCat() {
