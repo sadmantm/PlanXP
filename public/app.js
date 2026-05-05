@@ -2840,58 +2840,36 @@ function closeSheet(id) {
 }
 
 window.addEventListener('popstate', (e) => {
-  // 1. Tenta fechar o voice-sheet primeiro (handler especial)
+  // 1. Voice sheet
   if (window._voiceSheetBackHandler?.()) {
     history.pushState(null, '');
+    AndroidBridge?.onBackHandledByJs?.('1');
     return;
   }
 
-  // 2. Fecha qualquer sheet visível (sem a classe hidden)
+  // 2. Fecha qualquer sheet visível
   const visibleSheet = document.querySelector(
     '.bottom-sheet:not(.hidden), .sheet:not(.hidden), .voice-sheet:not(.hidden)'
   );
   if (visibleSheet) {
     closeSheet(visibleSheet.id);
+    AndroidBridge?.onBackHandledByJs?.('1');
     return;
   }
 
-  // 3. Se estiver em uma screen que não seja today, volta para today
+  // 3. Volta para today se estiver em outra screen
   const activeScreen = document.querySelector('.tab-screen.active');
   if (activeScreen && activeScreen.id !== 'screen-today') {
     switchTab('today');
+    AndroidBridge?.onBackHandledByJs?.('1');
     return;
   }
 
-  // 4. Já está em today — reempurra para não sair do app
-  history.pushState(null, '');
+  // 4. Já está em today — informa ao Android que não consumiu
+  AndroidBridge?.onBackHandledByJs?.('0');
 });
 
-// Coloque junto com o listener de popstate existente
-window._handleNativeBack = function() {
-  // 1. Voice sheet
-  if (window._voiceSheetBackHandler?.()) return true;
-
-  // 2. Qualquer sheet visível
-  const visibleSheet = document.querySelector(
-    '.bottom-sheet:not(.hidden), .sheet:not(.hidden), .voice-sheet:not(.hidden)'
-  );
-  if (visibleSheet) {
-    closeSheet(visibleSheet.id);
-    return true;
-  }
-
-  // 3. Screen que não seja today
-  const activeScreen = document.querySelector('.tab-screen.active');
-  if (activeScreen && activeScreen.id !== 'screen-today') {
-    switchTab('today');
-    return true;
-  }
-
-  // 4. Nada para fechar — Android pode perguntar se quer sair
-  return false;
-};
-
-// Estado inicial no histórico
+// Estado inicial
 history.pushState(null, '');
 //#endregion
 
