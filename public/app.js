@@ -2789,7 +2789,6 @@ function switchTab(tab) {
   const navBtn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
   if (navBtn) navBtn.classList.add('active');
 
-  // Atualiza bottom e visibilidade do nav no mesmo frame para evitar reflow
   requestAnimationFrame(() => {
     if (hasNav) {
       app.style.bottom = 'calc(var(--nav-h) + var(--safe-bottom))';
@@ -2799,6 +2798,11 @@ function switchTab(tab) {
       bottomNav.classList.add('hidden');
     }
   });
+
+  // Empurra estado para que o "voltar" nativo possa ser interceptado
+  if (tab !== 'today') {
+    history.pushState({ screen: tab }, '');
+  }
 
   if (tab === 'today')        renderToday();
   if (tab === 'plan')         renderPlan();
@@ -2823,6 +2827,9 @@ function openSheet(id) {
   sheet.classList.remove('hidden');
   const panel = sheet.querySelector('.sheet-panel');
   if (panel) gsap.fromTo(panel, { y: 80 }, { y: 0, duration: 0.28, ease: 'power2.out' });
+
+  // Empurra estado para capturar o "voltar" nativo
+  history.pushState({ sheet: id }, '');
 }
 
 function closeSheet(id) {
@@ -2832,103 +2839,35 @@ function closeSheet(id) {
   else sheet.classList.add('hidden');
 }
 
-// No JS global — intercepta popstate / backpress nativo
 window.addEventListener('popstate', (e) => {
-  // Tenta fechar o voice-sheet primeiro
-  if (window._voiceSheetBackHandler?.()) {
-    history.pushState(null, ''); // reempurra o estado para manter o histórico
-    return;
-  }
-  // Depois tenta fechar outros sheets abertos
-  const openSheet = document.querySelector('.sheet:not(.hidden), .bottom-sheet.visible');
-  if (openSheet) { closeSheet(openSheet.id); history.pushState(null, ''); }
-});
-
-// Garante que sempre há um estado no histórico para capturar o "voltar"
-history.pushState(null, '');
-//#endregion
-
-//#region Sistema de Navegação — Back Handler
-
-const _navStack = [];
-
-// ── Renomeia as funções originais no lugar de sobrescrever ──
-const _switchTabCore  = switchTab;
-const _openSheetCore  = openSheet;
-const _closeSheetCore = closeSheet;
-
-function openSheet(id) {
-  _openSheetCore(id);
-  if (_navStack[_navStack.length - 1] !== id) {
-    _navStack.push(id);
-  }
-  history.pushState({ nav: id }, '');
-}
-
-function closeSheet(id) {
-  _closeSheetCore(id);
-  const idx = _navStack.lastIndexOf(id);
-  if (idx !== -1) _navStack.splice(idx, 1);
-}
-
-function switchTab(tab) {
-  _switchTabCore(tab);
-  if (tab !== 'today') {
-    const existing = _navStack.lastIndexOf(`screen:${tab}`);
-    if (existing !== -1) _navStack.splice(existing, 1);
-    _navStack.push(`screen:${tab}`);
-    history.pushState({ nav: `screen:${tab}` }, '');
-  } else {
-    const filtered = _navStack.filter(e => !e.startsWith('screen:'));
-    _navStack.length = 0;
-    _navStack.push(...filtered);
-  }
-}
-
-function handleBackPress() {
+  // 1. Tenta fechar o voice-sheet primeiro (handler especial)
   if (window._voiceSheetBackHandler?.()) {
     history.pushState(null, '');
-    return true;
+    return;
   }
 
-  for (let i = _navStack.length - 1; i >= 0; i--) {
-    const entry = _navStack[i];
-    if (entry.startsWith('screen:')) continue;
-    const el = document.getElementById(entry);
-    if (el && !el.classList.contains('hidden')) {
-      closeSheet(entry);
-      history.pushState(null, '');
-      return true;
-    }
-    _navStack.splice(i, 1);
+  // 2. Fecha qualquer sheet visível (sem a classe hidden)
+  const visibleSheet = document.querySelector(
+    '.bottom-sheet:not(.hidden), .sheet:not(.hidden), .voice-sheet:not(.hidden)'
+  );
+  if (visibleSheet) {
+    closeSheet(visibleSheet.id);
+    return;
   }
 
+  // 3. Se estiver em uma screen que não seja today, volta para today
   const activeScreen = document.querySelector('.tab-screen.active');
   if (activeScreen && activeScreen.id !== 'screen-today') {
     switchTab('today');
-    history.pushState(null, '');
-    return true;
+    return;
   }
 
-  return false;
-}
-
-window.addEventListener('popstate', () => {
-  if (handleBackPress()) {
-    history.pushState(null, '');
-  }
+  // 4. Já está em today — reempurra para não sair do app
+  history.pushState(null, '');
 });
 
-document.addEventListener('keydown', e => {
-  const tag = document.activeElement?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-  if (e.key === 'Backspace' || e.key === 'Escape') {
-    if (handleBackPress()) e.preventDefault();
-  }
-});
-
+// Estado inicial no histórico
 history.pushState(null, '');
-
 //#endregion
 
 //#region Criação & Edição (Tasks & Categorias)
