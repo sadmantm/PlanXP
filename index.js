@@ -807,23 +807,93 @@ app.post("/api/ask-ai", async (req, res) => {
   const jobId = createJob();
   res.json({ jobId });
 
-  // Concatena system + prompt já que Puppeteer não tem system prompt nativo
-  const fullPrompt = system
-    ? `${system}\n\n---\n\n${prompt}`
-    : prompt;
-
+  const fullPrompt = system ? `${system}\n\n---\n\n${prompt}` : prompt;
   console.log(`[ask-ai] job ${jobId} iniciado para user ${payload.sub}`);
 
   askGemini(fullPrompt)
     .then(raw => {
       console.log(`[ask-ai] job ${jobId} concluído (${raw.length} chars)`);
       setJobDone(jobId, { content: [{ type: "text", text: raw }] });
+
+      // ── Persiste as tarefas no user_state independente do frontend ──
+      _saveVoiceTasksToState(payload.sub, raw);
     })
     .catch(err => {
       console.error(`[ask-ai] job ${jobId} falhou:`, err.message);
       setJobError(jobId, err.message);
     });
 });
+
+function _saveVoiceTasksToState(userId, raw) {
+  try {
+    const cleaned = raw.replace(/```json|```/gi, '').trim();
+    const match   = cleaned.match(/\[[\s\S]*\]/);
+    if (!match) return;
+
+    const parsedArr = JSON.parse(match[0]);
+    if (!Array.isArray(parsedArr) || parsedArr.length === 0) return;
+
+    const row = db.prepare('SELECT state_json FROM user_state WHERE user_id = ?').get(userId);
+    if (!row) return;
+
+    const userState = JSON.parse(row.state_json);
+
+    const validImportance = ['Obrigatório', 'Necessário', 'Padrão', 'Ideia'];
+    const validRepeat     = ['none', 'daily', 'weekdays', 'weekly'];
+    const validEnergy     = ['low', 'medium', 'high'];
+
+    let added = 0;
+    parsedArr.forEach((parsed, idx) => {
+      const title = (parsed.title || '').trim().slice(0, 100);
+      if (!title) return;
+
+      const cat   = (userState.categories || []).find(
+        c => parsed.category && c.name.toLowerCase() === parsed.category.toLowerCase()
+      );
+      const taskTime = /^\d{2}:\d{2}$/.test(parsed.taskTime || '') ? parsed.taskTime : null;
+
+      const task = {
+        id:              `task_voice_${Date.now()}_${idx}`,
+        type:            parsed.type === 'mission' ? 'mission' : 'task',
+        title,
+        notes:           parsed.notes || '',
+        catId:           cat?.id || userState.categories?.[0]?.id || null,
+        importance:      validImportance.includes(parsed.importance) ? parsed.importance : 'Padrão',
+        dueDate:         parsed.dueDate || null,
+        taskTime,
+        estimateMinutes: null,
+        repeat:          validRepeat.includes(parsed.repeat) ? parsed.repeat : 'none',
+        energy:          validEnergy.includes(parsed.energy) ? parsed.energy : 'medium',
+        status:          'todo',
+        createdAt:       Date.now() + idx,
+        xpEarned:        0,
+        lastCompleted:   null,
+        remindBefore:    null,
+        remindBeforeDays: null,
+        remindDate:      null,
+        insistent:       parsed.insistent === true,
+        insistentMin:    parsed.insistent ? (parseInt(parsed.insistentMin) || 15) : null,
+      };
+
+      userState.tasks.unshift(task);
+      added++;
+    });
+
+    if (added === 0) return;
+
+    db.prepare(`
+      INSERT INTO user_state (user_id, state_json, updated_at)
+      VALUES (?, ?, datetime('now'))
+      ON CONFLICT(user_id) DO UPDATE SET
+        state_json = excluded.state_json,
+        updated_at = excluded.updated_at
+    `).run(userId, JSON.stringify(userState));
+
+    console.log(`[ask-ai] ${added} tarefa(s) salvas no state do user ${userId}`);
+  } catch (err) {
+    console.error('[ask-ai] falha ao salvar tarefas no state:', err.message);
+  }
+}
 
 // Nova rota: retorna job ativo do usuário (se houver)
 app.get("/api/ask-ai/active-job", (req, res) => {
@@ -841,7 +911,6 @@ app.get("/api/ask-ai/active-job", (req, res) => {
 
   return res.json({ jobId: active.jobId });
 });
-
 
 /* ── POST /api/daily-history/complete ───────────────────────
    Chamado ao concluir tarefa ou subtarefa.
