@@ -8,6 +8,7 @@ async function launchApp(primeiraintecao = false) {
   document.getElementById('bottom-nav').classList.remove('hidden');
   generateMissions();
   renderAll();
+  resumePendingVoiceJob();
   renderMissions();
   requestNotifications();
   bindAtribuirTarefaSave();
@@ -61,6 +62,52 @@ async function init() {
 
   localStorage.setItem('dxp2_lastopen', today);
   renderMissions();
+}
+
+async function resumePendingVoiceJob() {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch('/api/ask-ai/active-job', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const { jobId } = await res.json();
+    if (!jobId) return;
+
+    // Há um job pendente — reexibe o card
+    const genCard = createVoiceGenCard(`voice_gen_resume`, '...');
+    const overlay = document.getElementById('gen-cards-overlay');
+    if (!overlay) return;
+    overlay.appendChild(genCard);
+    updateGenCard(genCard, 'Retomando geração de tarefas...');
+
+    // Retoma o polling
+    try {
+      const result = await pollJob('/api/ask-ai', null, jobId); // passa jobId direto, sem recriar
+      if (!result) throw new Error('Job sem resultado');
+
+      const raw     = result.content?.find(b => b.type === 'text')?.text || '[]';
+      const cleaned = raw.replace(/```json|```/g, '').trim();
+      let parsedArr;
+      try {
+        parsedArr = JSON.parse(cleaned);
+      } catch {
+        const match = cleaned.match(/\[[\s\S]*\]/);
+        parsedArr = match ? JSON.parse(match[0]) : [];
+      }
+
+      genCard.remove();
+      if (Array.isArray(parsedArr) && parsedArr.length > 0) {
+        prefillTaskSheet(parsedArr, '');
+      }
+    } catch (err) {
+      console.warn('[resumePendingVoiceJob] falhou:', err.message);
+      genCard.remove();
+    }
+  } catch (err) {
+    console.warn('[resumePendingVoiceJob] erro ao buscar job ativo:', err.message);
+  }
 }
 
 // 🔒 Bloquear botão direito

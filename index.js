@@ -793,23 +793,52 @@ app.get("/api/job/:id", (req, res) => {
   if (!job) return res.status(404).json({ error: "Job não encontrado." });
   return res.json(job);
 });
+// Map de userId → jobId ativo
+const userActiveJobs = new Map(); // userId → { jobId, preview }
 
-// ─── POST /api/ask-ai ─────────────────────────────────────────────────────────
-
+// ─── POST /api/ask-ai 
 app.post("/api/ask-ai", async (req, res) => {
-  const { prompt } = req.body;
+  const payload = verifyToken(req, res);
+  if (!payload) return;
+
+  const { prompt, system } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Campo "prompt" obrigatório.' });
 
   const jobId = createJob();
-  res.json({ jobId }); // responde imediatamente
+  res.json({ jobId });
 
-  askGemini(prompt)
-    .then(raw => setJobDone(jobId, { content: [{ type: "text", text: raw }] }))
+  // Registra job ativo para este usuário
+  userActiveJobs.set(payload.sub, { jobId, createdAt: Date.now() });
+
+  askGemini(prompt, system)
+    .then(raw => {
+      setJobDone(jobId, { content: [{ type: "text", text: raw }] });
+      userActiveJobs.delete(payload.sub); // limpa ao concluir
+    })
     .catch(err => {
       console.error("[ask-ai] erro:", err.message);
       setJobError(jobId, err.message);
+      userActiveJobs.delete(payload.sub);
     });
 });
+
+// Nova rota: retorna job ativo do usuário (se houver)
+app.get("/api/ask-ai/active-job", (req, res) => {
+  const payload = verifyToken(req, res);
+  if (!payload) return;
+
+  const active = userActiveJobs.get(payload.sub);
+  if (!active) return res.json({ jobId: null });
+
+  const job = jobs.get(active.jobId);
+  if (!job || job.status !== 'pending') {
+    userActiveJobs.delete(payload.sub);
+    return res.json({ jobId: null });
+  }
+
+  return res.json({ jobId: active.jobId });
+});
+
 
 /* ── POST /api/daily-history/complete ───────────────────────
    Chamado ao concluir tarefa ou subtarefa.
