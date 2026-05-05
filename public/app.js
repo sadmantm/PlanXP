@@ -167,7 +167,6 @@ function restoreRemindPickers(task) {
 async function pollJob(endpoint, body, existingJobId = null) {
   let jobId = existingJobId;
 
-  // Só cria novo job se não foi passado um existente
   if (!jobId) {
     const token = getToken();
     const res = await fetch(endpoint, {
@@ -181,14 +180,15 @@ async function pollJob(endpoint, body, existingJobId = null) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     jobId = data.jobId;
+    console.log(`[pollJob] job criado: ${jobId}`);
   }
 
-  // Polling
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 1500));
     const poll = await fetch(`/api/job/${jobId}`);
-    if (!poll.ok) throw new Error(`Poll HTTP ${poll.ok}`);
+    if (!poll.ok) throw new Error(`Poll HTTP ${poll.status}`); // era poll.ok — bug aqui
     const job = await poll.json();
+    console.log(`[pollJob] ${jobId} status: ${job.status} (tentativa ${i + 1})`);
     if (job.status === 'done')  return job.result;
     if (job.status === 'error') throw new Error(job.error || 'Job falhou');
   }

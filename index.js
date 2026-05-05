@@ -807,18 +807,21 @@ app.post("/api/ask-ai", async (req, res) => {
   const jobId = createJob();
   res.json({ jobId });
 
-  // Registra job ativo para este usuário
-  userActiveJobs.set(payload.sub, { jobId, createdAt: Date.now() });
+  // Concatena system + prompt já que Puppeteer não tem system prompt nativo
+  const fullPrompt = system
+    ? `${system}\n\n---\n\n${prompt}`
+    : prompt;
 
-  askGemini(prompt, system)
+  console.log(`[ask-ai] job ${jobId} iniciado para user ${payload.sub}`);
+
+  askGemini(fullPrompt)
     .then(raw => {
+      console.log(`[ask-ai] job ${jobId} concluído (${raw.length} chars)`);
       setJobDone(jobId, { content: [{ type: "text", text: raw }] });
-      userActiveJobs.delete(payload.sub); // limpa ao concluir
     })
     .catch(err => {
-      console.error("[ask-ai] erro:", err.message);
+      console.error(`[ask-ai] job ${jobId} falhou:`, err.message);
       setJobError(jobId, err.message);
-      userActiveJobs.delete(payload.sub);
     });
 });
 
