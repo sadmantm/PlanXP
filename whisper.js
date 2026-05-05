@@ -74,11 +74,10 @@ class TranscriptionQueue {
     let converted = null;
 
     try {
-      console.log(`[Whisper] Iniciando transcrição — ${path.basename(audioPath)}`);
+      console.log(`[Whisper] Iniciando transcrição`);
 
       // Converte para formato aceito pelo whisper.cpp
       converted = await toWav16k(audioPath);
-      console.log(`[Whisper] Áudio convertido → ${path.basename(converted)}`);
 
       const { stdout, stderr } = await execFileAsync(WHISPER_BIN, [
         "-m", WHISPER_MODEL,

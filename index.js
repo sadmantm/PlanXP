@@ -758,6 +758,9 @@ return res.json({ ok: true });
 });
 
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+  const payload = verifyToken(req, res);
+  if (!payload) return res.status(401).json({ error: 'Token ausente.' });
+
   if (!req.file)
     return res.status(400).json({ error: 'Envie um arquivo de áudio no campo "audio".' });
 
@@ -770,23 +773,87 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     fs.copyFileSync(req.file.path, rawPath);
   } catch (err) {
     cleanup(req.file.path);
-    console.error('[transcribe] falha ao copiar upload:', err.message);
-    return res.status(500).json({ error: 'Falha ao processar áudio enviado.', detail: err.message });
+    return res.status(500).json({ error: 'Falha ao processar áudio enviado.' });
   } finally {
     cleanup(req.file.path);
   }
 
+  let transcription;
   try {
     await convertToWav(rawPath, wavPath);
-    const text = await transcribeWithWhisperWeb(wavPath);
-    return res.json({ transcription: text });
+    transcription = await transcribeWithWhisperWeb(wavPath);
   } catch (err) {
     console.error('[transcribe] erro:', err.message);
-    return res.status(500).json({ error: 'Falha ao transcrever áudio.', detail: err.message });
+    return res.status(500).json({ error: 'Falha ao transcrever áudio.' });
   } finally {
     cleanup(rawPath, wavPath);
   }
+
+  if (!transcription) return res.status(422).json({ error: 'Transcrição vazia.' });
+
+  // Cria job do Gemini e responde imediatamente ao frontend
+  const jobId = createJob();
+  res.json({ transcription, jobId });
+
+  // Tudo daqui para baixo roda no backend independente do frontend
+  const { systemPrompt, userPrompt } = buildVoiceParsePrompt(transcription, payload.sub);
+  const fullPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
+  console.log(`[transcribe] job ${jobId} iniciado para user ${payload.sub}`);
+
+  askGemini(fullPrompt)
+    .then(raw => {
+      console.log(`[transcribe→gemini] job ${jobId} concluído (${raw.length} chars)`);
+      setJobDone(jobId, { content: [{ type: 'text', text: raw }] });
+      _saveVoiceTasksToState(payload.sub, raw);
+    })
+    .catch(err => {
+      console.error(`[transcribe→gemini] job ${jobId} falhou:`, err.message);
+      setJobError(jobId, err.message);
+    });
 });
+
+function buildVoiceParsePrompt(transcription, userId) {
+  const row = db.prepare('SELECT state_json FROM user_state WHERE user_id = ?').get(userId);
+  const userState = row ? JSON.parse(row.state_json) : defaultState('');
+  const catNames  = (userState.categories || []).map(c => c.name).join(', ') || 'Geral';
+
+  const now         = new Date();
+  const toLocalISO  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const todayISO    = toLocalISO(now);
+  const tomorrow    = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowISO = toLocalISO(tomorrow);
+  const todayFmt    = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const systemPrompt =
+    `Você é um assistente de produtividade. Sua única função é analisar transcrições de voz ` +
+    `em português brasileiro e extrair tarefas estruturadas. ` +
+    `Retorne APENAS um array JSON válido. Nenhum texto antes ou depois. Nenhum markdown.`;
+
+  const userPrompt =
+`CONTEXTO
+- Hoje: ${todayFmt} (ISO: ${todayISO})
+- Amanhã ISO: ${tomorrowISO}
+- Ano atual: ${now.getFullYear()}
+- Categorias disponíveis: ${catNames}
+
+TRANSCRIÇÃO
+"${transcription}"
+
+REGRAS
+1. CORREÇÃO FONÉTICA — corrija erros de reconhecimento de voz antes de interpretar.
+2. MÚLTIPLAS TAREFAS — gere uma tarefa por ação identificada.
+3. DATAS — "amanhã" = ${tomorrowISO}. Sem data mencionada = null.
+4. HORA → campo taskTime (formato "HH:MM", 24h). Sem horário → null.
+5. LEMBRETE → campo remindBefore: "1d", "7d", "30d", "custom". Sem menção → null.
+6. MODO INSISTENTE → insistent: true se usuário pedir para ser cobrado. insistentMin: intervalo em minutos.
+7. TÍTULO — máx 60 chars, descreve a ação no imperativo.
+8. CAMPOS — importance: "Obrigatório"|"Necessário"|"Padrão"|"Ideia". energy: "low"|"medium"|"high". repeat: "none"|"daily"|"weekdays"|"weekly".
+
+RETORNE APENAS O ARRAY JSON.`;
+
+  return { systemPrompt, userPrompt };
+}
 
 app.get("/api/job/:id", (req, res) => {
   const job = jobs.get(req.params.id);

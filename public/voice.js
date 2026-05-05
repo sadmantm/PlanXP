@@ -389,140 +389,6 @@ function toLocalISO(date) {
   return `${y}-${m}-${d}`;
 }
 
-// ── Parse de voz com IA ──────────────────────────────────────────────────────
-async function parseVoiceWithAI(text) {
-  const catNames = (state.categories || []).map(c => c.name).join(', ') || 'Geral';
-
-  const now         = new Date();
-  const todayISO    = toLocalISO(now);
-  const todayFmt    = now.toLocaleDateString('pt-BR', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-  const tomorrow    = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowISO = toLocalISO(tomorrow);
-  const year        = now.getFullYear();
-
-  const systemPrompt =
-    `Você é um assistente de produtividade. Sua única função é analisar transcrições de voz ` +
-    `em português brasileiro e extrair tarefas estruturadas. ` +
-    `Retorne APENAS um array JSON válido. Nenhum texto antes ou depois. Nenhum markdown.`;
-
-  const userPrompt =
-`CONTEXTO
-- Hoje: ${todayFmt} (ISO: ${todayISO})
-- Amanhã ISO: ${tomorrowISO}
-- Ano atual: ${year}
-- Categorias disponíveis: ${catNames}
-
-TRANSCRIÇÃO
-"${text}"
-
-REGRAS
-
-1. CORREÇÃO FONÉTICA
-   O texto foi gerado por reconhecimento de voz e pode conter erros. Corrija antes de interpretar.
-   Exemplos: "falta da 1h" → "por volta da 1h/13h", "apostar" → "postar", "dor mir" → "dormir".
-
-2. MÚLTIPLAS TAREFAS
-   Se houver mais de uma ação ou data, gere uma tarefa por ação. Nunca omita nenhuma.
-   Agrupe como "mission" só se forem etapas sequenciais de um mesmo objetivo.
-
-3. DATAS
-   - "amanhã" = ${tomorrowISO}
-   - "dia X de mês" = calcule ISO no ano ${year} (ou ${year + 1} se já passou)
-   - Sem data mencionada = null (nunca use hoje como padrão)
-   - Use EXATAMENTE o valor ISO fornecido acima para "amanhã"; não calcule por conta própria.
-
-4. HORA → campo taskTime (formato "HH:MM", 24h)
-   Sempre que o usuário mencionar um horário, converta para 24h e preencha "taskTime".
-   Sem horário mencionado → null.
-
-5. LEMBRETE ANTECIPADO → campo remindBefore
-   Se o usuário pedir para ser lembrado com antecedência, preencha "remindBefore":
-   - "um dia antes" / "1 dia antes"  → "1d"
-   - "uma semana antes"              → "7d"
-   - "um mês antes"                  → "30d"
-   - "X dias antes" (outro número)   → use "custom" e preencha "remindCustomDays": X
-   - Sem menção de lembrete          → null
-
-6. MODO INSISTENTE → campos insistent + insistentMin
-   Ative se o usuário usar frases como: "enche meu saco", "fica me lembrando", "me cobra",
-   "não me deixa esquecer", "urgente", "crítico".
-   - insistent: true
-   - insistentMin: intervalo em minutos inferido da fala, ou 15 se não especificado
-
-7. TÍTULO — Conciso, máx 60 chars, descreve a AÇÃO.
-
-8. OUTROS CAMPOS
-   - importance: "Obrigatório" | "Necessário" | "Padrão" | "Ideia"
-   - category: nome EXATO de uma das categorias, ou null
-   - energy: "low" | "medium" | "high"
-   - repeat: "none" | "daily" | "weekdays" | "weekly"
-   - notes: contexto adicional — nunca o horário
-
-EXEMPLO (hoje = ${todayISO}, amanhã = ${tomorrowISO})
-
-Entrada: "Me lembra amanhã de tomar água cedo e no dia 1 de maio às 9h me lembra de criar uma arte pro Instagram da empresa, me avisa um dia antes."
-
-Saída:
-[
-  {
-    "type": "task",
-    "title": "Tomar água de manhã",
-    "importance": "Padrão",
-    "category": "Saúde",
-    "notes": "De manhã cedo.",
-    "taskTime": null,
-    "energy": "low",
-    "repeat": "none",
-    "insistent": false,
-    "insistentMin": null,
-    "remindBefore": null,
-    "remindCustomDays": null,
-    "dueDate": "${tomorrowISO}"
-  },
-  {
-    "type": "task",
-    "title": "Criar arte Dia do Trabalhador para Instagram",
-    "importance": "Necessário",
-    "category": "Empresa",
-    "notes": "Arte comemorativa do 1º de maio para o Instagram da empresa.",
-    "taskTime": "09:00",
-    "energy": "medium",
-    "repeat": "none",
-    "insistent": false,
-    "insistentMin": null,
-    "remindBefore": "1d",
-    "remindCustomDays": null,
-    "dueDate": "${year}-05-01"
-  }
-]
-
-RETORNE APENAS O ARRAY JSON.`;
-
-  // ← pollJob substitui o fetch direto
-  const data = await pollJob('/api/ask-ai', {
-    system: systemPrompt,
-    prompt: userPrompt,
-  });
-
-  const raw     = data.content?.find(b => b.type === 'text')?.text || '[]';
-  const cleaned = raw.replace(/```json|```/g, '').trim();
-
-  let parsed;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('Resposta da IA não contém JSON válido');
-    parsed = JSON.parse(match[0]);
-  }
-
-  return Array.isArray(parsed) ? parsed : [parsed];
-}
-
-
 // ── Preenche o sheet de tarefa e salva no state ──────────────────────────────
 function prefillTaskSheet(parsedArr, fallbackText) {
   if (!Array.isArray(parsedArr) || parsedArr.length === 0) return;
@@ -791,9 +657,6 @@ async function stopAndProcess() {
   closeVoiceSheet();
   resetFab();
 
-  transcriptEl.textContent = '';
-  transcriptEl.classList.remove('visible');
-
   if (!audioBlob || audioBlob.size < 1000) {
     showXPToast('Áudio muito curto. Tente novamente.');
     return;
@@ -804,25 +667,40 @@ async function stopAndProcess() {
   fab.style.pointerEvents = 'none';
 
   try {
-    updateGenCard(genCard, 'Planejando tarefas com IA...');
-    const transcription = await transcribeAudio(audioBlob);
-    if (!transcription) throw new Error('Transcrição vazia');
+    updateGenCard(genCard, 'Transcrevendo áudio...');
 
+    const mime = audioBlob.type || 'audio/webm';
+    const ext  = mime.includes('ogg') ? 'ogg' : mime.includes('mp4') ? 'mp4' : 'webm';
+    const formData = new FormData();
+    formData.append('audio', audioBlob, `recording.${ext}`);
+
+    const token = getToken();
+    const res = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Transcrição HTTP ${res.status}`);
+    const { transcription, jobId } = await res.json();
+
+    if (!transcription) throw new Error('Transcrição vazia');
     const preview = transcription.slice(0, 60) + (transcription.length > 60 ? '…' : '');
     updateGenCard(genCard, `"${preview}" — identificando tarefas...`);
 
-    const parsedArr = await parseVoiceWithAI(transcription);
-    if (!Array.isArray(parsedArr) || parsedArr.length === 0) throw new Error('Nenhuma tarefa identificada');
+    // polling do job já iniciado no backend
+    const result  = await pollJob(null, null, jobId);
+    const raw     = result.content?.find(b => b.type === 'text')?.text || '[]';
+    const cleaned = raw.replace(/```json|```/g, '').trim();
 
-    updateGenCard(genCard, `Salvando ${parsedArr.length} tarefa(s)...`);
-
-    // ── Salva no state e persiste no backend IMEDIATAMENTE ──
-    // O usuário pode sair agora que já está salvo
-    prefillTaskSheet(parsedArr, transcription);
-    await save(); // garante que chegou ao backend antes de continuar
+    let parsedArr;
+    try { parsedArr = JSON.parse(cleaned); }
+    catch { const m = cleaned.match(/\[[\s\S]*\]/); parsedArr = m ? JSON.parse(m[0]) : []; }
 
     genCard.remove();
     fab.style.pointerEvents = '';
+    if (Array.isArray(parsedArr) && parsedArr.length > 0) {
+      prefillTaskSheet(parsedArr, transcription);
+    }
 
   } catch (err) {
     console.error('[stopAndProcess]', err);
