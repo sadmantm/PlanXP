@@ -1,0 +1,49 @@
+{
+    "rarityStyles": {
+      "comum":    { "bg": "rgba(136,136,153,0.15)", "color": "#888899", "border": "rgba(136,136,153,0.3)",  "label": "Comum"    },
+      "incomum":  { "bg": "rgba(78,205,196,0.12)",  "color": "#4ECDC4", "border": "rgba(78,205,196,0.35)",  "label": "Incomum"  },
+      "raro":     { "bg": "rgba(91,141,239,0.14)",  "color": "#5B8DEF", "border": "rgba(91,141,239,0.4)",   "label": "Raro"     },
+      "épico":    { "bg": "rgba(124,111,205,0.16)", "color": "#7C6FCD", "border": "rgba(124,111,205,0.45)", "label": "Épico"    },
+      "lendário": { "bg": "rgba(255,209,102,0.14)", "color": "#FFD166", "border": "rgba(255,209,102,0.5)",  "label": "Lendário" }
+    },
+    "achievements": [
+      { "id": "streak_3",        "icon": "fa-solid fa-fire",              "name": "Em Chamas",     "desc": "Streak de 3 dias",               "rarity": "comum",    "check": { "field": "streak",             "op": "gte", "value": 3    } },
+      { "id": "streak_7",        "icon": "fa-solid fa-fire-flame-curved", "name": "Incendiário",   "desc": "Streak de 7 dias",               "rarity": "incomum",  "check": { "field": "streak",             "op": "gte", "value": 7    } },
+      { "id": "streak_14",       "icon": "fa-solid fa-calendar-check",    "name": "Consistente",   "desc": "Streak de 14 dias",              "rarity": "raro",     "check": { "field": "streak",             "op": "gte", "value": 14   } },
+      { "id": "streak_30",       "icon": "fa-solid fa-gem",               "name": "Diamante",      "desc": "Streak de 30 dias",              "rarity": "épico",    "check": { "field": "streak",             "op": "gte", "value": 30   } },
+      { "id": "streak_100",      "icon": "fa-solid fa-infinity",          "name": "Inabalável",    "desc": "Streak de 100 dias",             "rarity": "lendário", "check": { "field": "streak",             "op": "gte", "value": 100  } },
+  
+      { "id": "tasks_1",         "icon": "fa-solid fa-check",             "name": "Primeiro Passo","desc": "1ª tarefa concluída",            "rarity": "comum",    "check": { "field": "tasksCompleted",     "op": "gte", "value": 1    } },
+      { "id": "tasks_10",        "icon": "fa-solid fa-bolt",              "name": "Velocista",     "desc": "10 tarefas concluídas",          "rarity": "comum",    "check": { "field": "tasksCompleted",     "op": "gte", "value": 10   } },
+      { "id": "tasks_50",        "icon": "fa-solid fa-mountain",          "name": "Implacável",    "desc": "50 tarefas concluídas",          "rarity": "incomum",  "check": { "field": "tasksCompleted",     "op": "gte", "value": 50   } },
+      { "id": "tasks_100",       "icon": "fa-solid fa-shield-halved",     "name": "Centurião",     "desc": "100 tarefas concluídas",         "rarity": "raro",     "check": { "field": "tasksCompleted",     "op": "gte", "value": 100  } },
+      { "id": "tasks_500",       "icon": "fa-solid fa-crown",             "name": "Soberano",      "desc": "500 tarefas concluídas",         "rarity": "épico",    "check": { "field": "tasksCompleted",     "op": "gte", "value": 500  } },
+      { "id": "tasks_1000",      "icon": "fa-solid fa-monument",          "name": "Lenda Viva",    "desc": "1000 tarefas concluídas",        "rarity": "lendário", "check": { "field": "tasksCompleted",     "op": "gte", "value": 1000 } },
+  
+      { "id": "xp_500",          "icon": "fa-solid fa-star",              "name": "Estrela",       "desc": "500 XP no total",                "rarity": "comum",    "check": { "field": "totalXP",            "op": "gte", "value": 500  } },
+      { "id": "xp_2000",         "icon": "fa-solid fa-star-half-stroke",  "name": "Supernova",     "desc": "2.000 XP no total",              "rarity": "incomum",  "check": { "field": "totalXP",            "op": "gte", "value": 2000 } },
+      { "id": "xp_10000",        "icon": "fa-solid fa-sun",               "name": "Solar",         "desc": "10.000 XP no total",             "rarity": "raro",     "check": { "field": "totalXP",            "op": "gte", "value": 10000} },
+      { "id": "xp_50000",        "icon": "fa-solid fa-galaxy",            "name": "Galáxico",      "desc": "50.000 XP no total",             "rarity": "lendário", "check": { "field": "totalXP",            "op": "gte", "value": 50000} },
+  
+      { "id": "level_3",         "icon": "fa-solid fa-seedling",          "name": "Brotando",      "desc": "Nível 3 atingido",               "rarity": "comum",    "check": { "field": "level",              "op": "gte", "value": 3    } },
+      { "id": "level_5",         "icon": "fa-solid fa-trophy",            "name": "Campeão",       "desc": "Nível 5 atingido",               "rarity": "incomum",  "check": { "field": "level",              "op": "gte", "value": 5    } },
+      { "id": "level_7",         "icon": "fa-solid fa-dragon",            "name": "Lendário",      "desc": "Nível 7 atingido",               "rarity": "raro",     "check": { "field": "level",              "op": "gte", "value": 7    } },
+      { "id": "level_10",        "icon": "fa-solid fa-skull",             "name": "Imortal",       "desc": "Nível 10 atingido",              "rarity": "lendário", "check": { "field": "level",              "op": "gte", "value": 10   } },
+  
+      { "id": "focus_1",         "icon": "fa-solid fa-bullseye",          "name": "Focado",        "desc": "1ª sessão de foco",              "rarity": "comum",    "check": { "field": "focusSessions",      "op": "gte", "value": 1    } },
+      { "id": "focus_5",         "icon": "fa-solid fa-brain",             "name": "Mente Afiada",  "desc": "5 sessões de foco",              "rarity": "comum",    "check": { "field": "focusSessions",      "op": "gte", "value": 5    } },
+      { "id": "focus_20",        "icon": "fa-solid fa-microscope",        "name": "Cientista",     "desc": "20 sessões de foco",             "rarity": "incomum",  "check": { "field": "focusSessions",      "op": "gte", "value": 20   } },
+      { "id": "focus_50",        "icon": "fa-solid fa-atom",              "name": "Zen Master",    "desc": "50 sessões de foco",             "rarity": "raro",     "check": { "field": "focusSessions",      "op": "gte", "value": 50   } },
+  
+      { "id": "missions_1",      "icon": "fa-solid fa-flag",              "name": "Missão Aceita", "desc": "1ª missão concluída",            "rarity": "comum",    "check": { "field": "missionsCompleted",  "op": "gte", "value": 1    } },
+      { "id": "missions_7",      "icon": "fa-solid fa-medal",             "name": "Veterano",      "desc": "7 missões concluídas",           "rarity": "incomum",  "check": { "field": "missionsCompleted",  "op": "gte", "value": 7    } },
+      { "id": "missions_30",     "icon": "fa-solid fa-shield",            "name": "Guardião",      "desc": "30 missões concluídas",          "rarity": "raro",     "check": { "field": "missionsCompleted",  "op": "gte", "value": 30   } },
+  
+      { "id": "early_bird",      "icon": "fa-solid fa-sun",               "name": "Madrugador",    "desc": "Tarefa concluída antes das 8h",  "rarity": "incomum",  "check": { "field": "earlyBirdDone",      "op": "eq",  "value": true } },
+      { "id": "night_owl",       "icon": "fa-solid fa-moon",              "name": "Coruja",        "desc": "Tarefa concluída após 23h",      "rarity": "incomum",  "check": { "field": "nightOwlDone",       "op": "eq",  "value": true } },
+      { "id": "perfect_day",     "icon": "fa-solid fa-circle-check",      "name": "Dia Perfeito",  "desc": "100% das tarefas no dia",        "rarity": "raro",     "check": { "field": "perfectDays",        "op": "gte", "value": 1    } },
+      { "id": "speed_run",       "icon": "fa-solid fa-gauge-high",        "name": "Speed Run",     "desc": "5 tarefas em menos de 1h",       "rarity": "épico",    "check": { "field": "speedRunDone",       "op": "eq",  "value": true } },
+      { "id": "hoarder",         "icon": "fa-solid fa-layer-group",       "name": "Colecionador",  "desc": "20 tarefas criadas de uma vez",  "rarity": "incomum",  "check": { "field": "tasks.length",       "op": "gte", "value": 20   } },
+      { "id": "category_master", "icon": "fa-solid fa-folder-tree",       "name": "Organizador",   "desc": "4 categorias criadas",           "rarity": "incomum",  "check": { "field": "categories.length",  "op": "gte", "value": 4    } }
+    ]
+  }

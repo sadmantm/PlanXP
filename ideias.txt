@@ -1,0 +1,7 @@
+Falta uma área para “captura rápida”
+
+Solução: botão rápido para jogar uma tarefa na caixa de entrada. Depois, a IA pode ajudar a organizar, definir prazo, dificuldade e XP.
+
+Falta sugestão do “próximo melhor passo”
+
+Solução: na tela inicial, mostrar uma recomendação: “Comece por esta tarefa: leva 10 min, vence hoje e dá 20 XP.”
