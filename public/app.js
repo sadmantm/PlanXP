@@ -2850,15 +2850,15 @@ history.pushState(null, '');
 
 //#region Sistema de Navegação — Back Handler
 
-const _navStack = []; // pilha de "o que está aberto agora"
+const _navStack = [];
 
-// ── Sobrescreve openSheet/closeSheet para rastrear a pilha ──
-const _origOpenSheet  = openSheet;
-const _origCloseSheet = closeSheet;
+// ── Renomeia as funções originais no lugar de sobrescrever ──
+const _switchTabCore  = switchTab;
+const _openSheetCore  = openSheet;
+const _closeSheetCore = closeSheet;
 
 function openSheet(id) {
-  _origOpenSheet(id);
-  // Empilha apenas se ainda não está no topo
+  _openSheetCore(id);
   if (_navStack[_navStack.length - 1] !== id) {
     _navStack.push(id);
   }
@@ -2866,58 +2866,43 @@ function openSheet(id) {
 }
 
 function closeSheet(id) {
-  _origCloseSheet(id);
+  _closeSheetCore(id);
   const idx = _navStack.lastIndexOf(id);
   if (idx !== -1) _navStack.splice(idx, 1);
 }
 
-// ── Sobrescreve switchTab para rastrear screens ──
-const _origSwitchTab = switchTab;
-
 function switchTab(tab) {
-  _origSwitchTab(tab);
+  _switchTabCore(tab);
   if (tab !== 'today') {
-    // Remove entradas anteriores da mesma screen para evitar duplicatas
     const existing = _navStack.lastIndexOf(`screen:${tab}`);
     if (existing !== -1) _navStack.splice(existing, 1);
     _navStack.push(`screen:${tab}`);
     history.pushState({ nav: `screen:${tab}` }, '');
   } else {
-    // Ao ir para today, limpa a pilha de screens
     const filtered = _navStack.filter(e => !e.startsWith('screen:'));
     _navStack.length = 0;
     _navStack.push(...filtered);
   }
 }
 
-// ── Lógica central de "voltar" ───────────────────────────────
 function handleBackPress() {
-  // 1. Fecha o voice-sheet se estiver aberto
   if (window._voiceSheetBackHandler?.()) {
     history.pushState(null, '');
     return true;
   }
 
-  // 2. Fecha o sheet mais recente aberto (não-screen)
   for (let i = _navStack.length - 1; i >= 0; i--) {
     const entry = _navStack[i];
     if (entry.startsWith('screen:')) continue;
-
     const el = document.getElementById(entry);
-    const isOpen = el && (
-      !el.classList.contains('hidden') &&
-      !el.classList.contains('hidden')
-    );
-    if (isOpen) {
+    if (el && !el.classList.contains('hidden')) {
       closeSheet(entry);
       history.pushState(null, '');
       return true;
     }
-    // Estava na pilha mas já estava fechado — remove
     _navStack.splice(i, 1);
   }
 
-  // 3. Está numa screen que não é today → volta para today
   const activeScreen = document.querySelector('.tab-screen.active');
   if (activeScreen && activeScreen.id !== 'screen-today') {
     switchTab('today');
@@ -2925,31 +2910,23 @@ function handleBackPress() {
     return true;
   }
 
-  return false; // deixa o comportamento padrão (minimiza o app)
+  return false;
 }
 
-// ── Intercepta popstate (botão voltar Android/browser) ──────
 window.addEventListener('popstate', () => {
   if (handleBackPress()) {
-    history.pushState(null, ''); // mantém histórico para próximo back
+    history.pushState(null, '');
   }
 });
 
-// ── Intercepta Backspace no teclado (desktop) ────────────────
 document.addEventListener('keydown', e => {
-  // Ignora se o foco está em input/textarea
   const tag = document.activeElement?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-  if (e.key === 'Backspace') {
-    if (handleBackPress()) e.preventDefault();
-  }
-  // Mantém o ESC também funcionando
-  if (e.key === 'Escape') {
+  if (e.key === 'Backspace' || e.key === 'Escape') {
     if (handleBackPress()) e.preventDefault();
   }
 });
 
-// Garante estado inicial no histórico
 history.pushState(null, '');
 
 //#endregion
