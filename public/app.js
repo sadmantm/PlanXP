@@ -2840,12 +2840,11 @@ function closeSheet(id) {
 }
 
 window.addEventListener('popstate', (e) => {
-  // 1. Voice sheet
-  if (window._voiceSheetBackHandler?.()) {
-    history.pushState(null, '');
-    AndroidBridge?.onBackHandledByJs?.('1');
-    return;
-  }
+  // Marca como consumido por padrão; desmarca só se não houver nada para fechar
+  window.__backConsumed = true;
+
+  // 1. Voice sheet (handler especial)
+  if (window._voiceSheetBackHandler?.()) return;
 
   // 2. Fecha qualquer sheet visível
   const visibleSheet = document.querySelector(
@@ -2853,7 +2852,6 @@ window.addEventListener('popstate', (e) => {
   );
   if (visibleSheet) {
     closeSheet(visibleSheet.id);
-    AndroidBridge?.onBackHandledByJs?.('1');
     return;
   }
 
@@ -2861,15 +2859,14 @@ window.addEventListener('popstate', (e) => {
   const activeScreen = document.querySelector('.tab-screen.active');
   if (activeScreen && activeScreen.id !== 'screen-today') {
     switchTab('today');
-    AndroidBridge?.onBackHandledByJs?.('1');
     return;
   }
 
-  // 4. Já está em today — informa ao Android que não consumiu
-  AndroidBridge?.onBackHandledByJs?.('0');
+  // 4. Nada consumiu — deixa o Android exibir o diálogo de saída
+  window.__backConsumed = false;
 });
 
-// Estado inicial
+// Estado inicial no histórico
 history.pushState(null, '');
 //#endregion
 
