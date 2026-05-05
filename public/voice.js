@@ -667,7 +667,7 @@ async function stopAndProcess() {
   fab.style.pointerEvents = 'none';
 
   try {
-    updateGenCard(genCard, 'Transcrevendo áudio...');
+    updateGenCard(genCard, 'Analisando tarefas...');
 
     const mime = audioBlob.type || 'audio/webm';
     const ext  = mime.includes('ogg') ? 'ogg' : mime.includes('mp4') ? 'mp4' : 'webm';
