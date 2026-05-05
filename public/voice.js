@@ -783,7 +783,6 @@ function _fillAndOpenSheet(task) {
   openEditTask(task.id); // ← substitua pelo nome real da função que abre o sheet de edição
 }
 
-
 async function stopAndProcess() {
   stopRecognition();
 
@@ -800,13 +799,8 @@ async function stopAndProcess() {
     return;
   }
 
-  const genId   = `voice_gen_${Date.now()}`;
-  const genCard = createVoiceGenCard(genId, '...');
-
-  // ← usa o overlay fixo em vez do list-now
-  const overlay = document.getElementById('gen-cards-overlay');
-  overlay.appendChild(genCard);
-
+  const genCard = createVoiceGenCard(`voice_gen_${Date.now()}`, '...');
+  document.getElementById('gen-cards-overlay')?.appendChild(genCard);
   fab.style.pointerEvents = 'none';
 
   try {
@@ -818,18 +812,17 @@ async function stopAndProcess() {
     updateGenCard(genCard, `"${preview}" — identificando tarefas...`);
 
     const parsedArr = await parseVoiceWithAI(transcription);
-    const count     = parsedArr.length;
+    if (!Array.isArray(parsedArr) || parsedArr.length === 0) throw new Error('Nenhuma tarefa identificada');
 
-    updateGenCard(
-      genCard,
-      `${count} tarefa${count !== 1 ? 's' : ''} identificada${count !== 1 ? 's' : ''}...`
-    );
+    updateGenCard(genCard, `Salvando ${parsedArr.length} tarefa(s)...`);
+
+    // ── Salva no state e persiste no backend IMEDIATAMENTE ──
+    // O usuário pode sair agora que já está salvo
+    prefillTaskSheet(parsedArr, transcription);
+    await save(); // garante que chegou ao backend antes de continuar
 
     genCard.remove();
-    setTimeout(() => {
-      fab.style.pointerEvents = '';
-      prefillTaskSheet(parsedArr, transcription);
-    }, 80);
+    fab.style.pointerEvents = '';
 
   } catch (err) {
     console.error('[stopAndProcess]', err);
@@ -838,7 +831,6 @@ async function stopAndProcess() {
     fab.style.pointerEvents = '';
   }
 }
-
 
 function updateGenCard(card, text) {
   const sub = card.querySelector('.voice-gen-sub');
