@@ -259,45 +259,80 @@ textarea {
   .empty-inline { font-size: 13px; color: var(--text-muted); padding: 12px 4px; }
   
   /* ── TASK CARDS ──────────────────────────────────────── */
-  .task-list { display: flex; flex-direction: column; gap: 9px; }
-  
-  .task-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-card);
-    border: 1px solid var(--border);
-    position: relative;
-    overflow: hidden;
-    touch-action: pan-y;
-    user-select: none;
-    transition: transform 0.12s, opacity 0.25s;
-  }
-  .task-card.completed { opacity: 0.4; }
-  .task-card.completed .task-title { text-decoration: line-through; color: var(--text-sec); }
-  .task-card.overdue { border-color: rgba(239,71,111,0.25); }
-  .task-card.overdue .task-title { color: #EF8FA8; }
-  .task-title {
-    /* mantenha as propriedades existentes e adicione: */
-    transition: max-height 0.3s ease, white-space 0s 0.3s;
-    max-height: 1.4em;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .task-title.expanded {
-    max-height: 10em;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    transition: max-height 0.3s ease;
-  }
-  .task-card-inner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 13px 14px;
-    transition: transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.25s;
-  }
-  
+.task-list { display: flex; flex-direction: column; gap: 9px; }
+
+.task-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  transition: transform 0.12s, opacity 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+.task-card.completed { opacity: 0.4; }
+.task-card.completed .task-title { text-decoration: line-through; color: var(--text-sec); }
+
+/* ── Urgência: borda esquerda colorida por importância ── */
+.task-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: transparent;
+  transition: background 0.2s;
+}
+.task-card[data-imp="Obrigatório"]::before { background: #EF476F; }
+.task-card[data-imp="Necessário"]::before  { background: #FFD166; }
+.task-card[data-imp="Padrão"]::before      { background: var(--accent); }
+.task-card[data-imp="Ideia"]::before       { background: var(--border); }
+.task-card.completed::before               { background: transparent; }
+
+/* ── Overdue: destaque vermelho pulsante ── */
+.task-card.overdue {
+  border-color: rgba(239,71,111,0.35);
+  box-shadow: 0 0 0 0 rgba(239,71,111,0.0);
+  animation: overdue-pulse 2.8s ease-in-out infinite;
+}
+.task-card.overdue::before { background: #EF476F !important; }
+.task-card.overdue .task-title { color: #EF8FA8; }
+
+@keyframes overdue-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(239,71,111,0.0); }
+  50%  { box-shadow: 0 0 0 4px rgba(239,71,111,0.12); }
+  100% { box-shadow: 0 0 0 0   rgba(239,71,111,0.0); }
+}
+
+/* ── Title ── */
+.task-title {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  max-height: 1.4em;
+  transition: max-height 0.3s ease, white-space 0s 0.3s;
+}
+.task-title.expanded {
+  max-height: 10em;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  transition: max-height 0.3s ease;
+}
+
+.task-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px 13px 17px; /* +4px à esquerda por causa da barra */
+  transition: transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.25s;
+}
+
+/* ── Assigned tag ── */
 .task-assigned-tag {
   display: inline-flex;
   align-items: center;
@@ -306,60 +341,160 @@ textarea {
   font-weight: 700;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
-  background: rgba(91, 141, 239, 0.12);
+  background: rgba(91,141,239,0.12);
   color: #5B8DEF;
-  border: 1px solid rgba(91, 141, 239, 0.2);
+  border: 1px solid rgba(91,141,239,0.2);
 }
 .task-assigned-tag i { font-size: 9px; }
-  
-  /* Hold ring */
-  .task-check-wrap {
-    position: relative;
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
-  }
-  .task-check-ring {
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.1);
-    display: flex; align-items: center; justify-content: center;
-    position: relative;
-    transition: border-color 0.3s, background 0.3s;
-  }
-  .task-check-ring i { font-size: 13px; opacity: 0; color: var(--accent-teal); transition: opacity 0.2s; }
-  .task-card.completed .task-check-ring { background: rgba(78,205,196,0.12); border-color: var(--accent-teal); }
-  .task-card.completed .task-check-ring i { opacity: 1; }
-  .hold-ring {
-    position: absolute;
-    inset: -2px;
-    border-radius: 50%;
-    background: conic-gradient(var(--accent-teal) 0%, transparent 0%);
-    pointer-events: none;
-  }
-  .task-content { flex: 1; min-width: 0; }
-  .task-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-  .task-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-  .task-cat-tag {
-    font-size: 11px; font-weight: 600;
-    padding: 2px 8px; border-radius: var(--radius-pill);
-  }
-  .task-imp-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-pill); }
-  .imp-mandatory { background: rgba(239,71,111,0.14); color: #EF476F; }
-  .imp-necessary { background: rgba(255,209,102,0.14); color: #FFD166; }
-  .imp-standard  { background: rgba(124,111,205,0.14); color: var(--accent); }
-  .imp-idea      { background: rgba(143,143,168,0.1);  color: var(--text-sec); }
-  .task-meta-extra { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--text-muted); }
-  .task-meta-extra i { font-size: 9px; }
-  .task-overdue-tag { font-size: 10px; color: #EF476F; font-weight: 700; }
-  .task-xp { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; color: var(--accent-warn); flex-shrink: 0; }
-  .task-card-inner * {
-    pointer-events: none;
-  }
-  
-  .task-action-btn {
-    pointer-events: all;
-  }
+
+/* ── Hold ring ── */
+.task-check-wrap {
+  position: relative;
+  width: 34px; height: 34px;
+  flex-shrink: 0;
+}
+.task-check-ring {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: border-color 0.3s, background 0.3s;
+}
+.task-check-ring i { font-size: 13px; opacity: 0; color: var(--accent-teal); transition: opacity 0.2s; }
+.task-card.completed .task-check-ring { background: rgba(78,205,196,0.12); border-color: var(--accent-teal); }
+.task-card.completed .task-check-ring i { opacity: 1; }
+
+/* Anel do hold colorido por importância em tarefas urgentes */
+.task-card[data-imp="Obrigatório"] .task-check-ring { border-color: rgba(239,71,111,0.3); }
+.task-card[data-imp="Necessário"]  .task-check-ring { border-color: rgba(255,209,102,0.3); }
+.task-card.overdue                 .task-check-ring { border-color: rgba(239,71,111,0.5); }
+
+.hold-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent-teal) 0%, transparent 0%);
+  pointer-events: none;
+}
+
+/* ── Content ── */
+.task-content { flex: 1; min-width: 0; }
+.task-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.task-cat-tag {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--radius-pill);
+}
+.task-imp-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: var(--radius-pill);
+}
+.imp-mandatory { background: rgba(239,71,111,0.14); color: #EF476F; }
+.imp-necessary { background: rgba(255,209,102,0.14); color: #FFD166; }
+.imp-standard  { background: rgba(124,111,205,0.14); color: var(--accent); }
+.imp-idea      { background: rgba(143,143,168,0.1);  color: var(--text-sec); }
+
+.task-meta-extra { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--text-muted); }
+.task-meta-extra i { font-size: 9px; }
+
+/* ── Overdue tag: ícone + fundo ── */
+.task-overdue-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #EF476F;
+  background: rgba(239,71,111,0.1);
+  border: 1px solid rgba(239,71,111,0.22);
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+}
+.task-overdue-tag::before {
+  content: '\f017'; /* fa-clock */
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 400;
+  font-size: 9px;
+}
+
+/* ── Remind / Insistent tags ── */
+.task-remind-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700;
+  color: #5B8DEF;
+  background: rgba(91,141,239,0.10);
+  padding: 2px 7px; border-radius: var(--radius-pill);
+}
+.task-insistent-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700;
+  color: #FFD166;
+  background: rgba(255,209,102,0.10);
+  padding: 2px 7px; border-radius: var(--radius-pill);
+}
+
+.task-xp {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px; font-weight: 700;
+  color: var(--accent-warn);
+  flex-shrink: 0;
+}
+.task-card-inner * { pointer-events: none; }
+.task-action-btn   { pointer-events: all; }
+
+
+/* ── EMPRESA TAREFA CARDS ────────────────────────────── */
+.tarefa-status-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border);
+}
+.tarefa-status-dot.pendente  { background: rgba(255,209,102,0.9); }
+.tarefa-status-dot.concluida { background: var(--accent-teal); }
+
+.tarefa-info { flex: 1; min-width: 0; }
+.tarefa-titulo {
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.empresa-tarefa-card.concluida .tarefa-titulo {
+  text-decoration: line-through;
+  color: var(--text-sec);
+}
+.tarefa-meta {
+  display: flex; align-items: center;
+  gap: 7px; flex-wrap: wrap;
+}
+.tarefa-assignee {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-sec); font-weight: 700;
+}
+.tarefa-assignee-dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-blue));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 800; color: white;
+  flex-shrink: 0;
+}
+.tarefa-grupo-tag {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: var(--radius-pill);
+}
+.tarefa-data {
+  font-size: 10px; color: var(--text-muted); font-weight: 600;
+  margin-left: auto; flex-shrink: 0;
+}
+.tarefa-data.atrasada {
+  color: #EF476F;
+  background: rgba(239,71,111,0.08);
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(239,71,111,0.18);
+}
+
   /* Swipe actions */
   .task-actions {
     position: absolute;
@@ -3661,71 +3796,6 @@ textarea {
   border-color: rgba(78,205,196,0.2);
 }
 
-/* Indicador de status (bolinha) */
-.tarefa-status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--border);
-}
-.tarefa-status-dot.pendente  { background: rgba(255,209,102,0.9); }
-.tarefa-status-dot.concluida { background: var(--accent-teal); }
-
-.tarefa-info { flex: 1; min-width: 0; }
-.tarefa-titulo {
-  font-size: 14px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 4px;
-}
-.empresa-tarefa-card.concluida .tarefa-titulo {
-  text-decoration: line-through;
-  color: var(--text-sec);
-}
-.tarefa-meta {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-.tarefa-assignee {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--text-sec);
-  font-weight: 700;
-}
-.tarefa-assignee-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-blue));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8px;
-  font-weight: 800;
-  color: white;
-  flex-shrink: 0;
-}
-.tarefa-grupo-tag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: var(--radius-pill);
-}
-.tarefa-data {
-  font-size: 10px;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.tarefa-data.atrasada { color: #EF476F; }
 
 /* ── Aviso não-admin ── */
 .empresa-naoadmin-notice {
