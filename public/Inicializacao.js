@@ -63,7 +63,7 @@ async function init() {
 
   localStorage.setItem('dxp2_lastopen', today);
   renderMissions();
-  
+  renderToday();
 }
 
 async function resumePendingVoiceJob() {

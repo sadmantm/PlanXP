@@ -401,7 +401,6 @@ async function autoLogin() {
     }
 
     const data = await res.json();
-    console.log('[autoLogin] estado remoto carregado');
     return data.state ?? null;
 
   } catch {
