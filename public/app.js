@@ -774,6 +774,7 @@ const futureTasks  = state.tasks.filter(t => t.dueDate && t.dueDate > today && t
   const hint = document.getElementById('gesture-hint');
   if (!state.gestureHintSeen && todayTasks.length > 0) hint?.classList.remove('hidden');
   else hint?.classList.add('hidden');
+  window.initSectionCollapseBindings?.();
 }
 
 function greeting() {
@@ -2958,6 +2959,112 @@ history.pushState(null, '');
     scroll.addEventListener('touchmove',  onTouchMove,  { passive: false });
     scroll.addEventListener('touchend',   onTouchEnd,   { passive: true });
   });
+})();
+//#endregion
+
+//#region Section Collapse
+(function initSectionCollapse() {
+  // Persiste estado aberto/fechado entre renders
+  const sectionState = { now: true, later: true, ideas: true };
+
+  const sections = [
+    { key: 'now',   headerId: 'sec-now',   listId: 'list-now',   emptyId: 'empty-now',   chevronId: 'sec-now-chevron' },
+    { key: 'later', headerId: 'sec-later', listId: 'list-later', emptyId: 'empty-later', chevronId: 'sec-later-chevron' },
+    { key: 'ideas', headerId: 'toggle-ideas', listId: 'list-ideas', emptyId: null,        chevronId: 'chevron-ideas' },
+  ];
+
+  function animateCollapse(list, empty, open) {
+    // Mede a altura real do conteúdo
+    const targets = [list, empty].filter(Boolean);
+
+    targets.forEach(el => {
+      if (open) {
+        // Abre: define altura atual como 0 → altura real
+        el.style.display  = '';
+        const h = el.scrollHeight;
+        el.style.overflow = 'hidden';
+        el.style.height   = '0px';
+        // Força reflow
+        void el.offsetHeight;
+        el.style.transition = 'height 0.26s cubic-bezier(0.4,0,0.2,1)';
+        el.style.height     = h + 'px';
+        el.addEventListener('transitionend', () => {
+          el.style.height     = '';
+          el.style.overflow   = '';
+          el.style.transition = '';
+        }, { once: true });
+      } else {
+        // Fecha: altura real → 0
+        el.style.overflow   = 'hidden';
+        el.style.height     = el.scrollHeight + 'px';
+        void el.offsetHeight;
+        el.style.transition = 'height 0.22s cubic-bezier(0.4,0,0.2,1)';
+        el.style.height     = '0px';
+        el.addEventListener('transitionend', () => {
+          el.style.display    = 'none';
+          el.style.height     = '';
+          el.style.overflow   = '';
+          el.style.transition = '';
+        }, { once: true });
+      }
+    });
+  }
+
+  function toggle(key) {
+    sectionState[key] = !sectionState[key];
+    applyState(key);
+  }
+
+  function applyState(key) {
+    const cfg     = sections.find(s => s.key === key);
+    if (!cfg) return;
+    const open    = sectionState[key];
+    const list    = document.getElementById(cfg.listId);
+    const empty   = cfg.emptyId ? document.getElementById(cfg.emptyId) : null;
+    const chevron = document.getElementById(cfg.chevronId);
+
+    if (!list) return;
+
+    // Chevron
+    if (chevron) chevron.classList.toggle('open', open);
+
+    animateCollapse(list, empty?.classList.contains('hidden') ? null : empty, open);
+  }
+
+  // Aplica estado inicial (sem animação) após o primeiro render
+  function applyInitial() {
+    sections.forEach(({ key, listId, emptyId, chevronId }) => {
+      const open    = sectionState[key];
+      const list    = document.getElementById(listId);
+      const empty   = emptyId ? document.getElementById(emptyId) : null;
+      const chevron = document.getElementById(chevronId);
+
+      if (chevron) chevron.classList.toggle('open', open);
+      if (!open) {
+        if (list)  list.style.display  = 'none';
+        if (empty) empty.style.display = 'none';
+      }
+    });
+  }
+
+  // Registra cliques nos headers
+  function bindHeaders() {
+    sections.forEach(({ key, headerId }) => {
+      const header = document.getElementById(headerId);
+      if (!header) return;
+      // Evita bind duplo
+      if (header._collapsebound) return;
+      header._collapsebound = true;
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', () => toggle(key));
+    });
+  }
+
+  // Expõe para ser chamado após cada renderToday()
+  window.initSectionCollapseBindings = function () {
+    bindHeaders();
+    applyInitial();
+  };
 })();
 //#endregion
 
