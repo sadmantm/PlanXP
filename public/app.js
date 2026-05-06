@@ -2496,7 +2496,6 @@ function initNotesCounter() {
 
 //#region Renderização - Planejamento
 function renderPlan() {
-  state.planCat = null;
   const view      = state.planView;
   const filtersEl = document.getElementById('plan-filters');
   const content   = document.getElementById('plan-content');
