@@ -649,6 +649,32 @@ function _fillAndOpenSheet(task) {
   openEditTask(task.id); // ← substitua pelo nome real da função que abre o sheet de edição
 }
 
+// Polling local — com log para diagnóstico e tratamento correto de rede
+async function waitForJob(jobId, maxWaitMs = 30000, intervalMs = 1200) {
+  const deadline = Date.now() + maxWaitMs;
+  const token = getToken();
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, intervalMs));
+    try {
+      const res = await fetch(`/api/job/${jobId}`, { headers: authHeader });
+      if (!res.ok) {
+        console.warn(`[waitForJob] poll retornou HTTP ${res.status}`);
+        continue;
+      }
+      const job = await res.json();
+      console.log(`[waitForJob] status: ${job.status}`);
+      if (job.status === 'done')  return job.result;
+      if (job.status === 'error') throw new Error(job.error || 'Job falhou no servidor');
+    } catch (err) {
+      if (err.message.includes('Job falhou')) throw err; // erro real do job
+      console.warn('[waitForJob] erro de rede, tentando novamente:', err.message);
+    }
+  }
+  throw new Error('Timeout aguardando processamento da IA');
+}
+
 async function stopAndProcess() {
   stopRecognition();
 
@@ -687,17 +713,21 @@ async function stopAndProcess() {
     const preview = transcription.slice(0, 60) + (transcription.length > 60 ? '…' : '');
     updateGenCard(genCard, `"${preview}" — identificando tarefas...`);
 
-    // Polling simples sem depender de pollJob externo
-    await waitForJob(jobId);
+    // Aguarda o job — se der timeout, não falha: o backend já salvou no banco
+    try {
+      await waitForJob(jobId);
+    } catch (err) {
+      // Timeout ou erro de rede no polling — backend pode ter concluído mesmo assim
+      console.warn('[stopAndProcess] waitForJob não confirmou, sincronizando mesmo assim:', err.message);
+    }
 
-    // Backend já salvou no banco — só recarrega o state do servidor
     updateGenCard(genCard, 'Sincronizando tarefas...');
     await syncStateFromServer();
 
     genCard.remove();
     fab.style.pointerEvents = '';
-    showXPToast('Tarefa criada por voz!');
     renderAll();
+    showXPToast('Tarefa criada por voz!');
 
   } catch (err) {
     console.error('[stopAndProcess]', err);
@@ -705,25 +735,6 @@ async function stopAndProcess() {
     fab.style.pointerEvents = '';
     showXPToast('Erro ao processar voz. Tente novamente.');
   }
-}
-
-// Polling local — não depende de pollJob externo
-async function waitForJob(jobId, maxWaitMs = 30000, intervalMs = 1200) {
-  const deadline = Date.now() + maxWaitMs;
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, intervalMs));
-    try {
-      const res = await fetch(`/api/job/${jobId}`);
-      if (!res.ok) continue;
-      const job = await res.json();
-      if (job.status === 'done')  return job.result;
-      if (job.status === 'error') throw new Error(job.error || 'Job falhou no servidor');
-    } catch (err) {
-      if (err.message.includes('Job falhou')) throw err;
-      // erro de rede — tenta de novo
-    }
-  }
-  throw new Error('Timeout aguardando processamento da IA');
 }
 
 // Recarrega o state do backend e atualiza o state local em memória
