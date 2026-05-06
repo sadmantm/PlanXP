@@ -2886,6 +2886,11 @@ history.pushState(null, '');
     if (e.touches.length !== 1) return;
     if (currentIndex() === -1) return;
 
+    // Ignora se o toque começou dentro de um card de tarefa ou subtarefa
+    if (e.target.closest('.task-card, .subtask-item, .mission-card')) {
+      decided = true; isSwipe = false; return;
+    }
+
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     decided     = false;
