@@ -650,7 +650,7 @@ function _fillAndOpenSheet(task) {
 }
 
 // Polling local — com log para diagnóstico e tratamento correto de rede
-async function waitForJob(jobId, maxWaitMs = 30000, intervalMs = 1200) {
+async function waitForJob(jobId, maxWaitMs = 60000, intervalMs = 1500) {
   const deadline = Date.now() + maxWaitMs;
   const token = getToken();
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
@@ -664,6 +664,7 @@ async function waitForJob(jobId, maxWaitMs = 30000, intervalMs = 1200) {
         continue;
       }
       const job = await res.json();
+      console.log(`[waitForJob] status: ${job.status}`);
       if (job.status === 'done')  return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Job falhou no servidor');
     } catch (err) {
@@ -689,6 +690,12 @@ async function stopAndProcess() {
 
   const genCard = createVoiceGenCard(`voice_gen_${Date.now()}`, '...');
   document.getElementById('gen-cards-overlay')?.appendChild(genCard);
+
+  const unblock = () => {
+    fab.style.pointerEvents = '';
+    genCard.remove();
+  };
+
   fab.style.pointerEvents = 'none';
 
   try {
@@ -700,9 +707,9 @@ async function stopAndProcess() {
     formData.append('audio', audioBlob, `recording.${ext}`);
 
     const now = new Date();
-const todayISO = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-formData.append('clientTodayISO', todayISO);
-formData.append('clientOffsetMinutes', String(now.getTimezoneOffset())); // já é positivo para UTC-3
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    formData.append('clientTodayISO', todayISO);
+    formData.append('clientOffsetMinutes', String(now.getTimezoneOffset()));
 
     const token = getToken();
     const res = await fetch('/api/transcribe', {
@@ -717,26 +724,22 @@ formData.append('clientOffsetMinutes', String(now.getTimezoneOffset())); // já 
     const preview = transcription.slice(0, 60) + (transcription.length > 60 ? '…' : '');
     updateGenCard(genCard, `"${preview}" — identificando tarefas...`);
 
-    // Aguarda o job — se der timeout, não falha: o backend já salvou no banco
     try {
       await waitForJob(jobId);
     } catch (err) {
-      // Timeout ou erro de rede no polling — backend pode ter concluído mesmo assim
       console.warn('[stopAndProcess] waitForJob não confirmou, sincronizando mesmo assim:', err.message);
     }
 
     updateGenCard(genCard, 'Sincronizando tarefas...');
     await syncStateFromServer();
 
-    genCard.remove();
-    fab.style.pointerEvents = '';
+    unblock();
     renderAll();
     showXPToast('Tarefa criada por voz!');
 
   } catch (err) {
     console.error('[stopAndProcess]', err);
-    genCard.remove();
-    fab.style.pointerEvents = '';
+    unblock();
     showXPToast('Erro ao processar voz. Tente novamente.');
   }
 }
