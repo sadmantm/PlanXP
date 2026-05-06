@@ -2888,7 +2888,7 @@ history.pushState(null, '');
     if (currentIndex() === -1) return;
 
     // Ignora se o toque começou dentro de um card de tarefa ou subtarefa
-    if (e.target.closest('.task-card, .subtask-item, .mission-card, .mtc-subtask, .mission-task-card')) {
+    if (e.target.closest('.task-card, .subtask-item, .mission-card, .mtc-subtask, .mission-task-card, .plan-tabs')) {
       decided = true; isSwipe = false; return;
     }
 
