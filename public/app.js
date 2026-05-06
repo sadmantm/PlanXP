@@ -2539,6 +2539,7 @@ function renderPlan() {
     group.className = 'task-list';
     tasks.forEach(t => group.appendChild(createTaskCard(t)));
     content.appendChild(group);
+    filtersEl.classList.add('hidden');
   }
 }
 
@@ -2591,9 +2592,7 @@ function renderPlanByPriority(container) {
 }
 
 function renderCatChipsPlan() {
-  console.log('[renderCatChipsPlan] categorias:', state.categories.map(c => c.name));
   const el = document.getElementById('cat-chips-plan');
-  console.log('[renderCatChipsPlan] elemento cat-chips-plan:', el);
   el.innerHTML = '';
   state.categories.forEach(cat => {
     const count = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done').length;
