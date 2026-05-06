@@ -2502,6 +2502,7 @@ function renderPlan() {
   content.innerHTML = '';
 
   filtersEl.classList.add('hidden');
+  console.log('Renderizando plano para a visão:', view);
 
   const overdueCount = state.tasks.filter(t => isOverdueByTime(t) && t.status !== 'done').length;
   document.querySelectorAll('.plan-tab').forEach(tab => {
@@ -2518,7 +2519,6 @@ function renderPlan() {
   if (view === 'category') {
     filtersEl.classList.remove('hidden');
     renderCatChipsPlan();
-    console.log('Renderizando por categoria, filtro:', state.planCat);
     renderPlanByCategory(content);
   } else if (view === 'priority') {
     renderPlanByPriority(content);
