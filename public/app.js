@@ -2496,6 +2496,7 @@ function initNotesCounter() {
 
 //#region Renderização - Planejamento
 function renderPlan() {
+  state.planCat = null;
   const view      = state.planView;
   const filtersEl = document.getElementById('plan-filters');
   const content   = document.getElementById('plan-content');
@@ -2595,15 +2596,139 @@ function renderPlanByPriority(container) {
 function renderCatChipsPlan() {
   const el = document.getElementById('cat-chips-plan');
   el.innerHTML = '';
+
   state.categories.forEach(cat => {
     const count = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done').length;
     const btn = document.createElement('button');
     btn.className = `cat-chip${state.planCat === cat.id ? ' active' : ''}`;
-    btn.innerHTML = `<i class="${cat.icon}" style="color:${cat.color}"></i>${cat.name}<span class="cc-count">${count}</span>`;
-    btn.onclick = () => { state.planCat = state.planCat === cat.id ? null : cat.id; renderPlan(); };
+    btn.innerHTML = `<i class="${cat.icon}" style="color:${cat.color}"></i>${escHtml(cat.name)}<span class="cc-count">${count}</span>`;
+
+    let holdTimer = null;
+    let didHold   = false;
+
+    function startHold() {
+      didHold = false;
+      holdTimer = setTimeout(() => {
+        didHold = true;
+        openDeleteCatModal(cat.id);
+      }, 600);
+    }
+
+    function cancelHold() {
+      clearTimeout(holdTimer);
+    }
+
+    btn.addEventListener('mousedown',   startHold);
+    btn.addEventListener('touchstart',  startHold, { passive: true });
+    btn.addEventListener('mouseup',     cancelHold);
+    btn.addEventListener('mouseleave',  cancelHold);
+    btn.addEventListener('touchend',    cancelHold);
+    btn.addEventListener('touchcancel', cancelHold);
+
+    btn.addEventListener('click', () => {
+      if (didHold) { didHold = false; return; } // ignora click pós-hold
+      state.planCat = state.planCat === cat.id ? null : cat.id;
+      renderPlan();
+    });
+
     el.appendChild(btn);
   });
 }
+
+
+// ── 3. Modal de deletar categoria (injeta uma vez, reaproveitando estilo do delete-modal) ──
+(function injectDeleteCatModal() {
+  if (document.getElementById('delete-cat-modal')) return;
+
+  const el = document.createElement('div');
+  el.id        = 'delete-cat-modal';
+  el.className = 'bottom-sheet hidden';
+  el.innerHTML = `
+    <div class="sheet-backdrop" data-close="delete-cat-modal"></div>
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div style="text-align:center;padding:8px 0 20px;">
+        <div style="width:52px;height:52px;border-radius:50%;background:#EF476F1a;
+                    display:flex;align-items:center;justify-content:center;
+                    margin:0 auto 14px;font-size:22px;color:#EF476F;">
+          <i class="fa-solid fa-folder-minus"></i>
+        </div>
+        <h3 class="sheet-title" style="margin-bottom:6px;">Excluir categoria?</h3>
+        <p id="delete-cat-modal-name"
+           style="font-size:13px;color:var(--text-muted);margin:0 16px;line-height:1.4;"></p>
+      </div>
+      <button id="delete-cat-modal-confirm"
+              style="width:100%;background:#EF476F;color:#fff;border:none;border-radius:14px;
+                     padding:14px;font-size:15px;font-weight:800;cursor:pointer;">
+        <i class="fa-solid fa-folder-minus" style="margin-right:6px;"></i>Sim, excluir
+      </button>
+      <button id="delete-cat-modal-cancel"
+              style="width:100%;margin-top:10px;background:transparent;
+                     border:1px solid var(--border,#333);color:var(--text-muted,#888);
+                     border-radius:14px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">
+        Cancelar
+      </button>
+      <div style="height:8px;"></div>
+    </div>
+  `;
+  document.body.appendChild(el);
+
+  let _deleteCatTargetId = null;
+
+  window.openDeleteCatModal = function(catId) {
+    _deleteCatTargetId = catId;
+    const cat    = state.categories.find(c => c.id === catId);
+    const nameEl = document.getElementById('delete-cat-modal-name');
+    const linked = state.tasks.filter(t => t.catId === catId).length;
+    if (nameEl) {
+      nameEl.textContent = linked > 0
+        ? `"${cat?.name}" tem ${linked} tarefa${linked !== 1 ? 's' : ''} vinculada${linked !== 1 ? 's' : ''}. Elas serão movidas para "Geral".`
+        : `"${cat?.name}" será removida permanentemente.`;
+    }
+    openSheet('delete-cat-modal');
+  };
+
+  document.getElementById('delete-cat-modal-confirm').addEventListener('click', () => {
+    if (_deleteCatTargetId) {
+      deleteCat(_deleteCatTargetId);
+      _deleteCatTargetId = null;
+    }
+    closeSheet('delete-cat-modal');
+  });
+
+  document.getElementById('delete-cat-modal-cancel').addEventListener('click', () => {
+    _deleteCatTargetId = null;
+    closeSheet('delete-cat-modal');
+  });
+
+  document.querySelector('#delete-cat-modal .sheet-backdrop')
+    .addEventListener('click', () => closeSheet('delete-cat-modal'));
+})();
+
+
+// ── 4. Função deleteCat ──
+function deleteCat(catId) {
+  // Impede deletar se for a única categoria
+  if (state.categories.length <= 1) {
+    showSnackbar('Você precisa ter pelo menos uma categoria.');
+    return;
+  }
+
+  // Move tarefas vinculadas para a primeira categoria que não seja a deletada
+  const fallback = state.categories.find(c => c.id !== catId)?.id || null;
+  state.tasks.forEach(t => {
+    if (t.catId === catId) t.catId = fallback;
+  });
+
+  state.categories = state.categories.filter(c => c.id !== catId);
+
+  // Se o filtro ativo era esta categoria, reseta
+  if (state.planCat === catId) state.planCat = null;
+
+  save();
+  renderAll();
+}
+
 //#endregion
 
 //#region Renderização - Missões
