@@ -808,22 +808,96 @@ async function _recordDailyComplete(xp, focusSession = false) {
 
 function openPostpone(id) {
   _postponeTargetId = id;
+
+  // pré-preenche com data/hora atual da tarefa, se houver
+  const task = state.tasks.find(t => t.id === id);
+  const dateInput = document.getElementById('postpone-date-input');
+  const timeInput = document.getElementById('postpone-time-input');
+  const confirmBtn = document.getElementById('postpone-confirm-btn');
+
+  dateInput.value = task?.dueDate || '';
+  timeInput.value = task?.taskTime || '';
+  confirmBtn.disabled = !dateInput.value;
+
   openSheet('postpone-sheet');
 }
 
-function applyPostpone(newDate) {
+function applyPostpone(newDate, newTime = null) {
   if (!_postponeTargetId) return;
   const task = state.tasks.find(t => t.id === _postponeTargetId);
   if (task) {
-    task.status = 'todo';
-    task.dueDate = newDate;
-    pushUndo({ tasks: state.tasks.map(t=>({...t})), totalXP: state.totalXP, todayXP: state.todayXP, coins: state.coins, tasksCompleted: state.tasksCompleted, streak: state.streak, lastActiveDate: state.lastActiveDate }, 'Tarefa adiada');
+    pushUndo(
+      {
+        tasks: state.tasks.map(t => ({ ...t })),
+        totalXP: state.totalXP, todayXP: state.todayXP,
+        coins: state.coins, tasksCompleted: state.tasksCompleted,
+        streak: state.streak, lastActiveDate: state.lastActiveDate,
+      },
+      'Tarefa adiada'
+    );
+    task.status   = 'todo';
+    task.dueDate  = newDate;
+    task.taskTime = newTime || null;
+
+    // Reagenda alarme nativo se tiver horário
+    if (newTime) {
+      const [h, m] = newTime.split(':').map(Number);
+      const dt = new Date(`${newDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+      if (dt.getTime() > Date.now()) {
+        NativeBridge.cancelAlarm(task.id);
+        NativeBridge.scheduleAlarm(task.id, task.title, dt.getTime(), task.repeat);
+      }
+    } else {
+      NativeBridge.cancelAlarm(task.id);
+    }
 
     save();
     renderAll();
   }
   closeSheet('postpone-sheet');
   _postponeTargetId = null;
+}
+
+// ── Bindings
+function initPostponeBindings() {
+  // Chips rápidos
+  document.querySelectorAll('.postpone-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const days    = parseInt(btn.dataset.days);
+      const weekend = btn.dataset.weekend;
+      let date = new Date();
+
+      if (weekend) {
+        // avança até o próximo sábado
+        const dow = date.getDay();           // 0=dom … 6=sab
+        const daysUntilSat = dow === 6 ? 7 : (6 - dow);
+        date.setDate(date.getDate() + daysUntilSat);
+      } else {
+        date.setDate(date.getDate() + days);
+      }
+
+      const iso = date.toISOString().split('T')[0];
+
+      // mantém o horário original da tarefa nos chips rápidos
+      const task = state.tasks.find(t => t.id === _postponeTargetId);
+      applyPostpone(iso, task?.taskTime || null);
+    });
+  });
+
+  // Input de data habilita botão confirmar
+  const dateInput  = document.getElementById('postpone-date-input');
+  const confirmBtn = document.getElementById('postpone-confirm-btn');
+  dateInput.addEventListener('input', () => {
+    confirmBtn.disabled = !dateInput.value;
+  });
+
+  // Confirmar manual
+  confirmBtn.addEventListener('click', () => {
+    const date = document.getElementById('postpone-date-input').value;
+    const time = document.getElementById('postpone-time-input').value || null;
+    if (!date) return;
+    applyPostpone(date, time);
+  });
 }
 //#endregion
 

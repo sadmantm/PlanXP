@@ -4146,6 +4146,89 @@ textarea {
 .atribuir-banner-clear:active { background: rgba(255,255,255,0.12); }
 /* #endregion */
 
+/* #region postpone */
+.postpone-quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-bottom: 16px;
+}
+
+.postpone-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  text-align: left;
+}
+.postpone-chip i {
+  font-size: 15px;
+  color: var(--accent);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.postpone-chip:active { transform: scale(0.97); }
+.postpone-chip:hover  { background: var(--bg-card-hover, rgba(255,255,255,0.06)); border-color: var(--accent); }
+
+.postpone-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+.postpone-divider::before,
+.postpone-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.postpone-divider span {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.postpone-custom { display: flex; flex-direction: column; gap: 12px; }
+
+.postpone-custom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.postpone-field { display: flex; flex-direction: column; gap: 6px; }
+.postpone-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.postpone-field .opt-label {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+#postpone-confirm-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* #endregion */
 #gen-cards-overlay {
   position: fixed;
   bottom: 90px; /* acima do FAB */

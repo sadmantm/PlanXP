@@ -12,6 +12,7 @@ async function launchApp(primeiraintecao = false) {
   renderMissions();
   requestNotifications();
   bindAtribuirTarefaSave();
+  initPostponeBindings();
 }
 
 async function init() {

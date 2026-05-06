@@ -322,22 +322,54 @@
     </div>
   </div>
 
-  <!-- Postpone picker -->
+  <!-- Adiar Tarefa -->
   <div id="postpone-sheet" class="bottom-sheet hidden">
     <div class="sheet-backdrop" data-close="postpone-sheet"></div>
     <div class="sheet-panel">
       <div class="sheet-handle"></div>
       <h3 class="sheet-title">Adiar para...</h3>
-      <div class="postpone-opts">
-        <button class="postpone-opt" data-days="1"><i class="fa-solid fa-arrow-right"></i>Amanhã</button>
-        <button class="postpone-opt" data-days="2"><i class="fa-solid fa-forward"></i>Depois de amanhã</button>
-        <button class="postpone-opt" data-weekend="1"><i class="fa-solid fa-umbrella-beach"></i>Fim de semana</button>
-        <button class="postpone-opt" data-days="7"><i class="fa-solid fa-calendar-week"></i>Semana que vem</button>
-        <button class="postpone-opt" data-custom="1"><i class="fa-solid fa-calendar-days"></i>Escolher data</button>
+  
+      <!-- Atalhos rápidos -->
+      <div class="postpone-quick">
+        <button class="postpone-chip" data-days="1">
+          <i class="fa-solid fa-sun"></i>
+          <span>Amanhã</span>
+        </button>
+        <button class="postpone-chip" data-days="2">
+          <i class="fa-solid fa-forward"></i>
+          <span>Depois de amanhã</span>
+        </button>
+        <button class="postpone-chip" data-weekend="1">
+          <i class="fa-solid fa-umbrella-beach"></i>
+          <span>Fim de semana</span>
+        </button>
+        <button class="postpone-chip" data-days="7">
+          <i class="fa-solid fa-calendar-week"></i>
+          <span>Semana que vem</span>
+        </button>
       </div>
-      <input type="date" id="postpone-date-input" class="date-input hidden" />
+  
+      <div class="postpone-divider"><span>ou escolha</span></div>
+  
+      <!-- Seleção manual de data + hora -->
+      <div class="postpone-custom">
+        <div class="postpone-custom-row">
+          <div class="postpone-field">
+            <label><i class="fa-regular fa-calendar"></i> Data</label>
+            <input type="date" id="postpone-date-input" class="date-input" />
+          </div>
+          <div class="postpone-field">
+            <label><i class="fa-regular fa-clock"></i> Horário <span class="opt-label">opcional</span></label>
+            <input type="time" id="postpone-time-input" class="time-input" />
+          </div>
+        </div>
+        <button class="btn-primary w-full" id="postpone-confirm-btn" disabled>
+          <i class="fa-solid fa-check"></i> Confirmar
+        </button>
+      </div>
+  
     </div>
-  </div>
+  </div>  
 
   <div id="reactivate-sheet" class="bottom-sheet hidden">
     <div class="sheet-backdrop" data-close="reactivate-sheet"></div>
