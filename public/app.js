@@ -1,20 +1,74 @@
 'use strict';
 
 //#region Constantes & Variáveis Globais
-const XP_TABLE   = { Obrigatório: 100, Necessário: 60, Padrão: 30, Ideia: 10 };
-const LEVEL_TITLES = ['Iniciante','Aprendiz','Explorador','Aventureiro','Guerreiro','Campeão','Lendário','Mestre','Élite','Imortal'];
-const CAT_COLORS = ['#7C6FCD','#5B8DEF','#4ECDC4','#EF476F','#FFD166','#06D6A0','#E07A5F','#A78BFA'];
+const XP_TABLE = { Obrigatório: 100, Necessário: 60, Padrão: 30, Ideia: 10 };
+
+const LEVEL_TITLES = [
+  'Procrastinador',   // 1
+  'Despertando',      // 2
+  'Em Movimento',     // 3
+  'Focado',           // 4
+  'Imparável',        // 5
+  'Estrategista',     // 6
+  'Alto Desempenho',  // 7
+  'Dominador',        // 8
+  'Lendário',         // 9
+  'Imortal',          // 10
+];
+
+const CAT_COLORS = [
+  '#7C6FCD', // roxo
+  '#5B8DEF', // azul
+  '#4ECDC4', // teal
+  '#EF476F', // vermelho-rosa
+  '#FFD166', // amarelo
+  '#06D6A0', // verde
+  '#E07A5F', // terracota
+  '#A78BFA', // lavanda
+  '#F97316', // laranja
+  '#EC4899', // pink
+  '#14B8A6', // ciano-escuro
+  '#84CC16', // verde-limão
+  '#F43F5E', // vermelho-vivo
+  '#8B5CF6', // violeta
+  '#64748B', // cinza-azulado
+  '#FB7185', // salmão
+  '#34D399', // esmeralda
+  '#FBBF24', // âmbar
+  '#60A5FA', // azul-claro
+  '#C084FC', // lilás
+];
+
 const CAT_FA_ICONS = [
-  { icon: 'fa-solid fa-briefcase', label: 'Empresa' },
-  { icon: 'fa-solid fa-house',     label: 'Casa' },
-  { icon: 'fa-solid fa-lightbulb', label: 'Ideia' },
-  { icon: 'fa-solid fa-heart',     label: 'Saúde' },
-  { icon: 'fa-solid fa-book',      label: 'Estudo' },
-  { icon: 'fa-solid fa-bullseye',  label: 'Meta' },
-  { icon: 'fa-solid fa-leaf',      label: 'Natureza' },
-  { icon: 'fa-solid fa-plane',     label: 'Viagem' },
-  { icon: 'fa-solid fa-gamepad',   label: 'Lazer' },
-  { icon: 'fa-solid fa-coins',     label: 'Finanças' },
+  { icon: 'fa-solid fa-briefcase',        label: 'Trabalho'    },
+  { icon: 'fa-solid fa-house',            label: 'Casa'        },
+  { icon: 'fa-solid fa-lightbulb',        label: 'Ideia'       },
+  { icon: 'fa-solid fa-heart-pulse',      label: 'Saúde'       },
+  { icon: 'fa-solid fa-book-open',        label: 'Estudo'      },
+  { icon: 'fa-solid fa-bullseye',         label: 'Meta'        },
+  { icon: 'fa-solid fa-plane',            label: 'Viagem'      },
+  { icon: 'fa-solid fa-gamepad',          label: 'Lazer'       },
+  { icon: 'fa-solid fa-coins',            label: 'Finanças'    },
+  { icon: 'fa-solid fa-dumbbell',         label: 'Treino'      },
+  { icon: 'fa-solid fa-code',             label: 'Dev'         },
+  { icon: 'fa-solid fa-paintbrush',       label: 'Criativo'    },
+  { icon: 'fa-solid fa-cart-shopping',    label: 'Compras'     },
+  { icon: 'fa-solid fa-utensils',         label: 'Alimentação' },
+  { icon: 'fa-solid fa-people-group',     label: 'Equipe'      },
+  { icon: 'fa-solid fa-graduation-cap',   label: 'Faculdade'   },
+  { icon: 'fa-solid fa-rocket',           label: 'Projeto'     },
+  { icon: 'fa-solid fa-music',            label: 'Música'      },
+  { icon: 'fa-solid fa-leaf',             label: 'Bem-estar'   },
+  { icon: 'fa-solid fa-wrench',           label: 'Manutenção'  },
+  { icon: 'fa-solid fa-chart-line',       label: 'Negócios'    },
+  { icon: 'fa-solid fa-camera',           label: 'Foto/Vídeo'  },
+  { icon: 'fa-solid fa-handshake',        label: 'Parceria'    },
+  { icon: 'fa-solid fa-star',             label: 'Favorito'    },
+  { icon: 'fa-solid fa-baby',             label: 'Família'     },
+  { icon: 'fa-solid fa-paw',             label: 'Pet'         },
+  { icon: 'fa-solid fa-car',              label: 'Automóvel'   },
+  { icon: 'fa-solid fa-bible',            label: 'Espiritual'  },
+  { icon: 'fa-solid fa-flask',            label: 'Pesquisa'    },
 ];
 
 let state = defaultState();

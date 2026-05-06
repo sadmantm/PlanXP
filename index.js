@@ -816,7 +816,9 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 function buildVoiceParsePrompt(transcription, userId) {
   const row = db.prepare('SELECT state_json FROM user_state WHERE user_id = ?').get(userId);
   const userState = row ? JSON.parse(row.state_json) : defaultState('');
-  const catNames  = (userState.categories || []).map(c => c.name).join(', ') || 'Geral';
+
+  const categories = (userState.categories || []).map(c => c.name);
+  const catNames   = categories.join(', ') || 'Geral';
 
   const now         = new Date();
   const toLocalISO  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -826,32 +828,76 @@ function buildVoiceParsePrompt(transcription, userId) {
   const todayFmt    = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const systemPrompt =
-    `Você é um assistente de produtividade. Sua única função é analisar transcrições de voz ` +
-    `em português brasileiro e extrair tarefas estruturadas. ` +
+    `Você é um assistente de produtividade especializado em português brasileiro. ` +
+    `Sua única função é analisar transcrições de voz e extrair tarefas estruturadas. ` +
     `Retorne APENAS um array JSON válido. Nenhum texto antes ou depois. Nenhum markdown.`;
 
-  const userPrompt =
-`CONTEXTO
-- Hoje: ${todayFmt} (ISO: ${todayISO})
-- Amanhã ISO: ${tomorrowISO}
-- Ano atual: ${now.getFullYear()}
-- Categorias disponíveis: ${catNames}
+  const prompt = {
+    objective:
+      'Analisar a transcrição de voz fornecida, corrigir erros fonéticos do reconhecimento automático ' +
+      'e extrair todas as tarefas mencionadas de forma estruturada, respeitando datas, horários, ' +
+      'prioridades e intenções do usuário.',
 
-TRANSCRIÇÃO
-"${transcription}"
+    context: {
+      background_info: {
+        data_atual: todayFmt,
+        hoje_iso:   todayISO,
+        amanha_iso: tomorrowISO,
+        ano_atual:  now.getFullYear(),
+        categorias_disponiveis: categories.length ? categories : ['Geral'],
+        usuario: {
+          nome:   userState.userName  || '',
+          perfil: userState.userProfile || '',
+          nivel:  userState.level      || 1,
+          streak: userState.streak     || 0,
+        },
+      },
+      source_material:
+        `Transcrição de voz do usuário (pode conter erros fonéticos — corrija antes de interpretar):\n"${transcription}"`,
+    },
 
-REGRAS
-1. CORREÇÃO FONÉTICA — corrija erros de reconhecimento de voz antes de interpretar.
-2. MÚLTIPLAS TAREFAS — gere uma tarefa por ação identificada.
-3. DATAS — "amanhã" = ${tomorrowISO}. Sem data mencionada = null.
-4. HORA → campo taskTime (formato "HH:MM", 24h). Sem horário → null.
-5. LEMBRETE → campo remindBefore: "1d", "7d", "30d", "custom". Sem menção → null.
-6. MODO INSISTENTE → insistent: true se usuário pedir para ser cobrado. insistentMin: intervalo em minutos.
-7. TÍTULO — máx 60 chars, descreve a ação no imperativo.
-8. CAMPOS — importance: "Obrigatório"|"Necessário"|"Padrão"|"Ideia". energy: "low"|"medium"|"high". repeat: "none"|"daily"|"weekdays"|"weekly".
+    parameters: {
+      tone: 'Extraia com precisão, sem inferir intenções além do que foi dito.',
+      constraints: [
+        'Gere UMA tarefa por ação identificada na transcrição.',
+        'CORREÇÃO FONÉTICA: antes de extrair, corrija erros comuns de reconhecimento de voz em pt-BR (ex: "lembrança" → "lembrete", "amanhece" → "amanhã", nomes próprios distorcidos).',
+        'TÍTULO: máx 60 chars, imperativo, descreve a ação principal (ex: "Enviar relatório para o cliente").',
+        'DATAS: interprete expressões relativas — "amanhã" = ' + tomorrowISO + ', "semana que vem" = próxima segunda, "hoje" = ' + todayISO + '. Sem menção de data = null.',
+        'HORÁRIO: extraia para taskTime em "HH:MM" formato 24h. Sem menção = null.',
+        'IMPORTÂNCIA: classifique pelo contexto — urgente/crítico → "Obrigatório", importante → "Necessário", rotina → "Padrão", vaga/futura → "Ideia".',
+        'CATEGORIA: escolha a mais próxima dentre as disponíveis. Se nenhuma encaixar, use a primeira.',
+        'ENERGIA: "low" para tarefas passivas/simples, "medium" para tarefas comuns, "high" para tarefas complexas/físicas.',
+        'RECORRÊNCIA: "daily" se disser "todo dia", "weekdays" se "dias úteis", "weekly" se "toda semana", "none" caso contrário.',
+        'LEMBRETE: remindBefore "1d", "7d", "30d" ou "custom" se o usuário pedir aviso antecipado. Sem menção = null.',
+        'MODO INSISTENTE: insistent = true se o usuário pedir para ser cobrado/lembrado repetidamente. insistentMin = intervalo em minutos (padrão 15).',
+        'TIPO: type = "mission" se a tarefa for grande/complexa e claramente tiver múltiplas etapas. Caso contrário = "task".',
+        'NOTAS: se o usuário detalhar como fazer ou mencionar sub-etapas, registre em notes (máx 200 chars).',
+      ],
+      style_guide: 'Português brasileiro. Títulos no imperativo. Seja fiel ao que foi dito — não invente tarefas.',
+    },
 
-RETORNE APENAS O ARRAY JSON.`;
+    output_format: {
+      format_type: 'json',
+      required_elements: ['array de objetos de tarefa'],
+      schema: [{
+        title:          'string — imperativo, máx 60 chars',
+        notes:          'string — detalhes extras mencionados (ou "" se nenhum)',
+        category:       'string — nome exato de uma das categorias disponíveis',
+        importance:     '"Obrigatório" | "Necessário" | "Padrão" | "Ideia"',
+        dueDate:        'string ISO YYYY-MM-DD | null',
+        taskTime:       '"HH:MM" | null',
+        energy:         '"low" | "medium" | "high"',
+        repeat:         '"none" | "daily" | "weekdays" | "weekly"',
+        type:           '"task" | "mission"',
+        remindBefore:   '"1d" | "7d" | "30d" | "custom" | null',
+        insistent:      'boolean',
+        insistentMin:   'number | null',
+      }],
+      strict: 'Retorne SOMENTE o array JSON. Sem texto, sem markdown, sem explicações.',
+    },
+  };
 
+  const userPrompt = JSON.stringify(prompt, null, 2);
   return { systemPrompt, userPrompt };
 }
 
@@ -1047,7 +1093,6 @@ app.get('/api/day-summary', (req, res) => {
   });
 });
 
-
 /* ── Helpers de prompt ───────────────────────────────────── */
 function buildPrompt(task, user) {
   const rhythmMap = {
@@ -1129,7 +1174,6 @@ function buildPrompt(task, user) {
 
   return JSON.stringify(prompt, null, 2);
 }
-
 
 function buildSuggestPrompt(task, user, extraContext) {
   const rhythmMap = {
