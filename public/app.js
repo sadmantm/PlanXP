@@ -2502,8 +2502,6 @@ function renderPlan() {
   content.innerHTML = '';
 
   filtersEl.classList.add('hidden');
-  console.log('Renderizando plano para a visão:', view);
-
   const overdueCount = state.tasks.filter(t => isOverdueByTime(t) && t.status !== 'done').length;
   document.querySelectorAll('.plan-tab').forEach(tab => {
     const existing = tab.querySelector('.plan-tab-badge');
