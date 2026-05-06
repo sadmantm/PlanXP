@@ -2598,7 +2598,7 @@ function renderCatChipsPlan() {
   state.categories.forEach(cat => {
     const count = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done').length;
     const btn = document.createElement('button');
-    btn.className = `cat-chip${state.planCat === cat.id}`;
+    btn.className = `cat-chip${state.planCat === cat.id ? ' active' : ''}`;
     btn.innerHTML = `<i class="${cat.icon}" style="color:${cat.color}"></i>${cat.name}<span class="cc-count">${count}</span>`;
     btn.onclick = () => { state.planCat = state.planCat === cat.id ? null : cat.id; renderPlan(); };
     el.appendChild(btn);
