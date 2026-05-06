@@ -2518,6 +2518,7 @@ function renderPlan() {
   if (view === 'category') {
     filtersEl.classList.remove('hidden');
     renderCatChipsPlan();
+    console.log('Renderizando por categoria, filtro:', state.planCat);
     renderPlanByCategory(content);
   } else if (view === 'priority') {
     renderPlanByPriority(content);
