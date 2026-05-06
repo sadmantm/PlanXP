@@ -2607,14 +2607,19 @@ function renderCatChipsPlan() {
 
     function startHold() {
       didHold = false;
+      btn.classList.add('cat-chip-holding');
       holdTimer = setTimeout(() => {
         didHold = true;
+        btn.classList.remove('cat-chip-holding');
+        btn.classList.add('cat-chip-held');
+        setTimeout(() => btn.classList.remove('cat-chip-held'), 400);
         openDeleteCatModal(cat.id);
       }, 600);
     }
 
     function cancelHold() {
       clearTimeout(holdTimer);
+      btn.classList.remove('cat-chip-holding');
     }
 
     btn.addEventListener('mousedown',   startHold);
@@ -2625,7 +2630,7 @@ function renderCatChipsPlan() {
     btn.addEventListener('touchcancel', cancelHold);
 
     btn.addEventListener('click', () => {
-      if (didHold) { didHold = false; return; } // ignora click pós-hold
+      if (didHold) { didHold = false; return; }
       state.planCat = state.planCat === cat.id ? null : cat.id;
       renderPlan();
     });
@@ -2633,7 +2638,6 @@ function renderCatChipsPlan() {
     el.appendChild(btn);
   });
 }
-
 
 // ── 3. Modal de deletar categoria (injeta uma vez, reaproveitando estilo do delete-modal) ──
 (function injectDeleteCatModal() {
@@ -3145,7 +3149,15 @@ function switchTab(tab) {
   }
 
   if (tab === 'today')        renderToday();
-  if (tab === 'plan')         renderPlan();
+  if (tab === 'plan') {
+         state.planView = 'today';  // ← garante que inicia em "hoje"
+         state.planCat  = null;
+         // sincroniza o tab ativo visualmente:
+         document.querySelectorAll('.plan-tab').forEach(t =>
+           t.classList.toggle('active', t.dataset.view === 'today')
+         );
+        renderPlan();
+       }
   if (tab === 'focus')        renderFocusTaskSelect();
   if (tab === 'missions')     renderMissions();
   if (tab === 'achievements') renderAchievements();
