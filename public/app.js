@@ -3107,7 +3107,7 @@ history.pushState(null, '');
     if (currentIndex() === -1) return;
 
     // Ignora se o toque começou dentro de um card de tarefa ou subtarefa
-    if (e.target.closest('.task-card, .subtask-item, .mission-card, .mtc-subtask, .mission-task-card, .plan-tabs')) {
+    if (e.target.closest('.task-card, .subtask-item, .mission-card, .mtc-subtask, .mission-task-card, .plan-tabs, .cat-chips-plan')) {
       decided = true; isSwipe = false; return;
     }
 
@@ -3505,7 +3505,7 @@ function saveCat() {
 
   save();
   closeSheet('add-cat-sheet');
-  renderAll();
+  setTimeout(() => renderAll(), 350); // ← aguarda animação do sheet fechar
 }
 //#endregion
 
