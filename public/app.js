@@ -2592,7 +2592,9 @@ function renderPlanByPriority(container) {
 }
 
 function renderCatChipsPlan() {
+  console.log('[renderCatChipsPlan] categorias:', state.categories.map(c => c.name));
   const el = document.getElementById('cat-chips-plan');
+  console.log('[renderCatChipsPlan] elemento cat-chips-plan:', el);
   el.innerHTML = '';
   state.categories.forEach(cat => {
     const count = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done').length;
@@ -3468,22 +3470,16 @@ function saveCat() {
   const name = document.getElementById('cat-name-input').value.trim();
   if (!name) return;
 
-  // Guard: nome duplicado
-  if (state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-    showToast?.('Já existe uma categoria com esse nome.');
-    return;
-  }
-
-  // Guard: ícone/cor com fallback explícito (nunca undefined)
   const icon  = state._newCatIcon  || CAT_FA_ICONS[0].icon;
   const color = state._newCatColor || CAT_COLORS[0];
 
-  state.categories.push({
-    id: `cat_${Date.now()}`,
-    name,
-    icon,
-    color,
-  });
+  const newCat = { id: `cat_${Date.now()}`, name, icon, color };
+  console.log('[saveCat] nova categoria:', newCat);
+  
+  state.categories.push(newCat);
+  console.log('[saveCat] state.categories após push:', JSON.stringify(state.categories));
+  console.log('[saveCat] state.activeTab:', state.activeTab);
+  console.log('[saveCat] state.planView:', state.planView);
 
   save();
   closeSheet('add-cat-sheet');
