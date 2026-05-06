@@ -3056,7 +3056,7 @@ history.pushState(null, '');
       header._collapsebound = true;
       header.style.cursor = 'pointer';
       header.addEventListener('click', (e) => {
-        if (e.target.closest('.task-card, .subtask-item')) return;
+        if (e.target.closest('.task-card, .subtask-item, .mission-task-card')) return;
         toggle(key);
       });
     });
