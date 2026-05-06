@@ -2867,6 +2867,195 @@ window.addEventListener('popstate', (e) => {
 history.pushState(null, '');
 //#endregion
 
+//#region Swipe Navigation
+(function initSwipeNav() {
+  const NAV_TABS   = ['today', 'plan', 'focus'];
+  const THRESHOLD  = 72;   // px mínimos para confirmar swipe
+  const RATIO      = 1.8;  // deltaX deve ser N× maior que deltaY
+  const MAX_DRAG   = 140;  // px máximo de arrasto visual
+  const ANIM_MS    = 260;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let dragging    = false;
+  let rejected    = false;  // gesto identificado como scroll vertical
+  let currentEl   = null;
+  let nextEl      = null;
+  let direction   = 0;      // -1 = indo para esquerda (próxima), +1 = direita (anterior)
+
+  function currentIndex() {
+    return NAV_TABS.indexOf(state.activeTab);
+  }
+
+  function getScreen(tab) {
+    return document.getElementById(`screen-${tab}`);
+  }
+
+  // Prepara a tela vizinha fora da viewport para o drag visual
+  function mountNext(idx) {
+    if (direction === -1 && idx < NAV_TABS.length - 1) {
+      nextEl = getScreen(NAV_TABS[idx + 1]);
+    } else if (direction === 1 && idx > 0) {
+      nextEl = getScreen(NAV_TABS[idx - 1]);
+    } else {
+      nextEl = null;
+    }
+
+    if (!nextEl) return;
+
+    // Garante que a vizinha está "visível" mas posicionada ao lado
+    nextEl.style.transition = 'none';
+    nextEl.style.transform  = `translateX(${direction < 0 ? '100%' : '-100%'})`;
+    nextEl.classList.add('active');
+  }
+
+  function onTouchStart(e) {
+    // Ignora multi-touch
+    if (e.touches.length !== 1) return;
+
+    const idx = currentIndex();
+    if (idx === -1) return; // tela atual não é uma nav-tab
+
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    dragging    = false;
+    rejected    = false;
+    currentEl   = getScreen(NAV_TABS[idx]);
+    nextEl      = null;
+    direction   = 0;
+  }
+
+  function onTouchMove(e) {
+    if (rejected) return;
+
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+
+    // Ainda não decidimos a direção do gesto
+    if (!dragging) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return; // movimento mínimo
+
+      // Se o eixo dominante é vertical → scroll normal
+      if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) / Math.abs(dy) < RATIO) {
+        rejected = true;
+        return;
+      }
+
+      // Eixo horizontal confirmado
+      direction = dx < 0 ? -1 : 1;
+      const idx = currentIndex();
+
+      // Verifica se há tela nessa direção
+      const targetIdx = idx + (direction < 0 ? 1 : -1);
+      if (targetIdx < 0 || targetIdx >= NAV_TABS.length) {
+        rejected = true;
+        return;
+      }
+
+      dragging = true;
+      mountNext(idx);
+    }
+
+    if (!dragging || !currentEl) return;
+    e.preventDefault(); // impede scroll horizontal do body
+
+    const raw    = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, dx));
+    const eased  = raw * (1 - Math.abs(raw) / (MAX_DRAG * 2.2)); // resistência nas bordas
+
+    currentEl.style.transition = 'none';
+    currentEl.style.transform  = `translateX(${eased}px)`;
+
+    if (nextEl) {
+      const base = direction < 0 ? window.innerWidth : -window.innerWidth;
+      nextEl.style.transition = 'none';
+      nextEl.style.transform  = `translateX(${base + eased}px)`;
+    }
+  }
+
+  function onTouchEnd(e) {
+    if (!dragging || !currentEl) {
+      cleanup();
+      return;
+    }
+
+    const dx      = e.changedTouches[0].clientX - touchStartX;
+    const confirm = Math.abs(dx) >= THRESHOLD;
+    const idx     = currentIndex();
+    const css     = `transform ${ANIM_MS}ms cubic-bezier(0.25,0.46,0.45,0.94)`;
+
+    if (confirm && nextEl) {
+      // ── Confirma a troca ────────────────────────────────
+      currentEl.style.transition = css;
+      currentEl.style.transform  = `translateX(${direction < 0 ? '-100%' : '100%'})`;
+
+      nextEl.style.transition = css;
+      nextEl.style.transform  = 'translateX(0)';
+
+      const targetTab = NAV_TABS[idx + (direction < 0 ? 1 : -1)];
+
+      setTimeout(() => {
+        // Deixa o switchTab fazer a limpeza definitiva de classes/estado
+        // mas evita re-montar a animação que já terminou
+        currentEl.style.transition = '';
+        currentEl.style.transform  = '';
+        currentEl.classList.remove('active');
+
+        nextEl.style.transition = '';
+        nextEl.style.transform  = '';
+
+        // Atualiza state e nav sem re-aplicar transform
+        state.activeTab = targetTab;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        const navBtn = document.querySelector(`.nav-btn[data-tab="${targetTab}"]`);
+        if (navBtn) navBtn.classList.add('active');
+
+        // Dispara render da nova tela
+        if (targetTab === 'today')  renderToday();
+        if (targetTab === 'plan')   renderPlan();
+        if (targetTab === 'focus')  renderFocusTaskSelect();
+
+        if (targetTab !== 'today') history.pushState({ screen: targetTab }, '');
+
+        cleanup();
+      }, ANIM_MS);
+
+    } else {
+      // ── Cancela — volta ao lugar ─────────────────────────
+      currentEl.style.transition = css;
+      currentEl.style.transform  = 'translateX(0)';
+
+      if (nextEl) {
+        nextEl.style.transition = css;
+        nextEl.style.transform  = `translateX(${direction < 0 ? '100%' : '-100%'})`;
+      }
+
+      setTimeout(() => {
+        if (nextEl) nextEl.classList.remove('active');
+        cleanup();
+      }, ANIM_MS);
+    }
+  }
+
+  function cleanup() {
+    if (currentEl) { currentEl.style.transition = ''; currentEl.style.transform = ''; }
+    if (nextEl)    { nextEl.style.transition = '';    nextEl.style.transform = '';    }
+    dragging = rejected = false;
+    direction = 0;
+    currentEl = nextEl = null;
+  }
+
+  // Registra nos três screen-scrolls das nav-tabs
+  NAV_TABS.forEach(tab => {
+    const screen = document.getElementById(`screen-${tab}`);
+    if (!screen) return;
+    const scroll = screen.querySelector('.screen-scroll') || screen;
+    scroll.addEventListener('touchstart', onTouchStart, { passive: true });
+    scroll.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    scroll.addEventListener('touchend',   onTouchEnd,   { passive: true });
+  });
+})();
+//#endregion
+
 //#region Criação & Edição (Tasks & Categorias)
 function openAddTask(prefillDate) {
   _editTaskId  = null;
