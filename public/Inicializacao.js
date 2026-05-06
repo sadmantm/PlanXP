@@ -155,6 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Categoria
+  document.addEventListener('click', e => {
+    if (e.target.closest('#save-cat-btn')) saveCat();
+  });
+  
   document.getElementById('plan-add-cat')?.addEventListener('click', openAddCat);
 
   // Sheet backdrops

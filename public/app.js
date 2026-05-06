@@ -3488,6 +3488,25 @@ function renderIconPicker() {
     ip.appendChild(btn);
   });
 }
+
+function saveCat() {
+  const name = document.getElementById('cat-name-input').value.trim();
+  if (!name) return;
+
+  if (state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+    showSnackbar('Já existe uma categoria com esse nome.');
+    return;
+  }
+
+  const icon  = state._newCatIcon  || CAT_FA_ICONS[0].icon;
+  const color = state._newCatColor || CAT_COLORS[0];
+
+  state.categories.push({ id: `cat_${Date.now()}`, name, icon, color });
+
+  save();
+  closeSheet('add-cat-sheet');
+  renderAll();
+}
 //#endregion
 
 //#region Render Geral
