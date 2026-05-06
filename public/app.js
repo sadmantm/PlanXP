@@ -861,10 +861,18 @@ function renderToday() {
     nextTask ? nextTask.title : 'Nenhuma tarefa pendente';
 
   // ── seções: agora ordenação já veio do sortTasks ──
-  const now   = todayTasks.filter(t => t.importance === 'Obrigatório' || t.importance === 'Necessário');
-  const ideas = todayTasks.filter(t => t.importance === 'Ideia');
+  const now = todayTasks.filter(t =>
+    t.importance === 'Obrigatório' ||
+    t.importance === 'Necessário'  ||
+    isOverdueByTime(t)              // ← atrasada sempre vai pra "Agora"
+  );
+  
+  const ideas = todayTasks.filter(t => t.importance === 'Ideia' && !isOverdueByTime(t));
+  
   const later = [
-    ...todayTasks.filter(t => t.importance === 'Padrão'),
+    ...todayTasks.filter(t =>
+      t.importance === 'Padrão' && !isOverdueByTime(t)  // ← só Padrão não-atrasada
+    ),
     ...futureTasks,
   ];
 
