@@ -813,19 +813,34 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     });
 });
 
-function buildVoiceParsePrompt(transcription, userId) {
+function buildVoiceParsePrompt(transcription, userId, clientTodayISO, clientOffsetMinutes) {
   const row = db.prepare('SELECT state_json FROM user_state WHERE user_id = ?').get(userId);
   const userState = row ? JSON.parse(row.state_json) : defaultState('');
 
   const categories = (userState.categories || []).map(c => c.name);
   const catNames   = categories.join(', ') || 'Geral';
 
-  const now         = new Date();
-  const toLocalISO  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const todayISO    = toLocalISO(now);
-  const tomorrow    = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowISO = toLocalISO(tomorrow);
-  const todayFmt    = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  // Usa a data local do cliente se fornecida; senão aplica o offset para corrigir UTC
+  let todayISO, tomorrowISO, todayFmt;
+
+  if (clientTodayISO) {
+    todayISO = clientTodayISO;
+    const [y, m, d]  = clientTodayISO.split('-').map(Number);
+    const tomDate    = new Date(y, m - 1, d + 1);
+    tomorrowISO      = `${tomDate.getFullYear()}-${String(tomDate.getMonth()+1).padStart(2,'0')}-${String(tomDate.getDate()).padStart(2,'0')}`;
+    const todayDate  = new Date(y, m - 1, d);
+    todayFmt         = todayDate.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  } else {
+    // Fallback: corrige UTC com offset do cliente (em minutos) se disponível
+    const offsetMs   = (clientOffsetMinutes ?? 180) * 60 * 1000; // padrão BRT = UTC-3 = 180min
+    const localNow   = new Date(Date.now() - offsetMs);
+    const toISO      = d => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    todayISO         = toISO(localNow);
+    const tom        = new Date(localNow); tom.setUTCDate(tom.getUTCDate() + 1);
+    tomorrowISO      = toISO(tom);
+    todayFmt         = new Date(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate())
+                         .toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }
 
   const systemPrompt =
     `Você é um assistente de produtividade especializado em português brasileiro. ` +

@@ -700,6 +700,11 @@ async function stopAndProcess() {
     const formData = new FormData();
     formData.append('audio', audioBlob, `recording.${ext}`);
 
+    const now = new Date();
+const todayISO = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+formData.append('clientTodayISO', todayISO);
+formData.append('clientOffsetMinutes', String(now.getTimezoneOffset())); // já é positivo para UTC-3
+
     const token = getToken();
     const res = await fetch('/api/transcribe', {
       method: 'POST',
