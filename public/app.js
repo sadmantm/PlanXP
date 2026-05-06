@@ -1006,16 +1006,18 @@ function createTaskCard(task) {
   const cat = state.categories.find(c => c.id === task.catId) || { name:'Geral', color:'#7C6FCD', icon:'fa-solid fa-circle' };
   const impClass = { Obrigatório:'imp-mandatory', Necessário:'imp-necessary', Padrão:'imp-standard', Ideia:'imp-idea' }[task.importance] || 'imp-standard';
   const xp = computeXP(task.importance);
-  const overdue = isOverdue(task);
+  const overdue = isOverdueByTime(task); // ← corrigido
 
   const card = document.createElement('div');
   card.className = `task-card${task.status==='done'?' completed':''}${overdue?' overdue':''}`;
-  card.dataset.id = task.id;
+  card.dataset.id  = task.id;
+  card.dataset.imp = task.importance; // ← adicionado
+
   let metaExtra = '';
   if (task.estimateMinutes) metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimateMinutes}</span>`;
   if (task.repeat && task.repeat !== 'none') metaExtra += `<span class="task-meta-extra"><i class="fa-solid fa-rotate"></i></span>`;
-  const overdueByTime = isOverdueByTime(task);
-  if (overdueByTime) {
+
+  if (overdue) {
     const sameDay = task.dueDate === todayISO();
     const label   = sameDay && task.taskTime
       ? `Atrasada desde ${task.taskTime}`
@@ -1024,6 +1026,7 @@ function createTaskCard(task) {
   } else if (task.dueDate && task.dueDate !== todayISO()) {
     metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-calendar"></i>${formatDate(task.dueDate)}</span>`;
   }
+
   if (task.remindDate && task.status !== 'done')
     metaExtra += `<span class="task-remind-tag"><i class="fa-solid fa-bell"></i>${formatDate(task.remindDate)}</span>`;
   if (task.insistent && task.insistentMin && task.status !== 'done')
