@@ -3049,15 +3049,13 @@ history.pushState(null, '');
 
   // Registra cliques nos headers
   function bindHeaders() {
-    sections.forEach(({ key, headerId }) => {
+    sections.forEach(({ key, headerId, chevronId }) => {
       const header = document.getElementById(headerId);
       if (!header) return;
-      // Evita bind duplo
       if (header._collapsebound) return;
       header._collapsebound = true;
       header.style.cursor = 'pointer';
       header.addEventListener('click', (e) => {
-        // Só dispara se o clique veio do próprio header ou do chevron
         if (e.target !== header && !e.target.closest(`#${chevronId}`)) return;
         toggle(key);
       });
