@@ -860,7 +860,7 @@ function buildVoiceParsePrompt(transcription, userId, clientTodayISO, clientOffs
         data_atual: todayFmt,
         hoje_iso:   todayISO,
         amanha_iso: tomorrowISO,
-        ano_atual:  now.getFullYear(),
+        ano_atual:  parseInt(todayISO.slice(0, 4)),
         categorias_disponiveis: categories.length ? categories : ['Geral'],
         usuario: {
           nome:   userState.userName  || '',
