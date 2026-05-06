@@ -949,13 +949,21 @@ function setupSwipe(card, id) {
   const inner = card.querySelector('.task-card-inner');
   let sx = 0, sy = 0, dx = 0, active = false, dirLocked = null;
 
+  function resetVisual() {
+    inner.style.transform = '';
+    inner.style.opacity   = '';
+    card.style.background = '';
+    card.style.removeProperty('--swipe-hint-color');
+  }
+
   card.addEventListener('touchstart', e => {
     sx = e.touches[0].clientX;
     sy = e.touches[0].clientY;
     dx = 0;
     active = true;
     dirLocked = null;
-    card._isSwiping = false;
+    card._isSwiping = false; // sempre reseta no início
+    resetVisual();           // limpa qualquer resíduo visual
   }, { passive: true });
 
   card.addEventListener('touchmove', e => {
@@ -965,17 +973,14 @@ function setupSwipe(card, id) {
     dx = curX - sx;
     const dy = curY - sy;
 
-    // Determina direção predominante na primeira movimentação significativa
     if (!dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
       dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
     }
 
-    // Scroll vertical → cancela swipe completamente
     if (dirLocked === 'v') {
       active = false;
       card._isSwiping = false;
-      inner.style.transform = '';
-      inner.style.opacity   = '';
+      resetVisual();
       return;
     }
 
@@ -985,13 +990,11 @@ function setupSwipe(card, id) {
     const clamped = Math.max(-120, Math.min(120, dx));
 
     if (dx < 0) {
-      // ← Esquerda: tinge de vermelho
       inner.style.transform = `translateX(${clamped}px)`;
       const ratio = Math.min(Math.abs(dx) / SWIPE_ACTION_LEFT, 1);
       inner.style.opacity = String(1 - ratio * 0.45);
       card.style.setProperty('--swipe-hint-color', `rgba(239,71,111,${ratio * 0.18})`);
     } else {
-      // → Direita: tinge de roxo
       inner.style.transform = `translateX(${clamped}px)`;
       const ratio = Math.min(dx / SWIPE_ACTION_RIGHT, 1);
       card.style.setProperty('--swipe-hint-color', `rgba(124,111,205,${ratio * 0.18})`);
@@ -1004,27 +1007,23 @@ function setupSwipe(card, id) {
     if (!active) return;
     active = false;
 
-    // Reseta visual
-    inner.style.transform = '';
-    inner.style.opacity   = '';
-    card.style.background = '';
-
-    if (!card._isSwiping) return;
+    const wasSwipe = card._isSwiping;
     card._isSwiping = false;
+    resetVisual();
+
+    if (!wasSwipe) return;
 
     if (dx < -SWIPE_ACTION_LEFT) {
-      openDeleteModal(id);          // ← confirma antes de deletar
+      openDeleteModal(id);
     } else if (dx > SWIPE_ACTION_RIGHT) {
-      openTaskContextMenu(id, card); // → context menu
+      openTaskContextMenu(id, card);
     }
   });
 
   card.addEventListener('touchcancel', () => {
     active = false;
     card._isSwiping = false;
-    inner.style.transform = '';
-    inner.style.opacity   = '';
-    card.style.background = '';
+    resetVisual();
   });
 }
 
