@@ -374,7 +374,7 @@ async function _persist() {
   }
 }
 
-/* ── load() — chamado após auto-login resolver ───────────── */
+//chamado após auto-login resolver ─────────────
 function load(remoteState) {
   if (remoteState) Object.assign(state, remoteState);
   // Garante campos novos de versões futuras
@@ -384,7 +384,7 @@ function load(remoteState) {
   }
 }
 
-/* ── autoLogin() — chamado no topo do init() ─────────────── */
+/* ── autoLogin */
 async function autoLogin() {
   const token = getToken();
   if (!token) return null;
@@ -401,6 +401,7 @@ async function autoLogin() {
     }
 
     const data = await res.json();
+    console.log('[autoLogin] estado remoto carregado');
     return data.state ?? null;
 
   } catch {
