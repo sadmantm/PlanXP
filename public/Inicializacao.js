@@ -172,6 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPlan();
   });
 
+  document.getElementById('save-cat-btn')?.addEventListener('click', saveCat);
+
   // Focus timer
   document.getElementById('focus-start')?.addEventListener('click', startTimer);
   document.getElementById('focus-reset')?.addEventListener('click', resetTimer);

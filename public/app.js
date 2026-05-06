@@ -3466,26 +3466,6 @@ function openAddCat() {
   openSheet('add-cat-sheet');
 }
 
-function saveCat() {
-  const name = document.getElementById('cat-name-input').value.trim();
-  if (!name) return;
-
-  const icon  = state._newCatIcon  || CAT_FA_ICONS[0].icon;
-  const color = state._newCatColor || CAT_COLORS[0];
-
-  const newCat = { id: `cat_${Date.now()}`, name, icon, color };
-  console.log('[saveCat] nova categoria:', newCat);
-  
-  state.categories.push(newCat);
-  console.log('[saveCat] state.categories após push:', JSON.stringify(state.categories));
-  console.log('[saveCat] state.activeTab:', state.activeTab);
-  console.log('[saveCat] state.planView:', state.planView);
-
-  save();
-  closeSheet('add-cat-sheet');
-  renderAll();
-}
-
 function renderColorPicker() {
   const cp = document.getElementById('color-picker'); if (!cp) return;
   cp.innerHTML = '';
