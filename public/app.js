@@ -691,6 +691,46 @@ function uid() { return `t_${Date.now()}_${Math.random().toString(36).slice(2,6)
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Retorna true se a tarefa está atrasada considerando data E hora
+function isOverdueByTime(task) {
+  if (!task.dueDate || task.status === 'done') return false;
+  const today = todayISO();
+  if (task.dueDate < today) return true;                    // dia passado
+  if (task.dueDate > today) return false;                   // dia futuro
+  // mesmo dia: só atrasa se tiver hora definida e já passou
+  if (!task.taskTime) return false;
+  const [h, m] = task.taskTime.split(':').map(Number);
+  const due = new Date(); due.setHours(h, m, 0, 0);
+  return Date.now() > due.getTime();
+}
+
+// Peso de importância (menor = maior prioridade)
+function impWeight(imp) {
+  return { Obrigatório: 0, Necessário: 1, Padrão: 2, Ideia: 3 }[imp] ?? 2;
+}
+
+// Ordenação: atrasadas primeiro → data+hora → importância
+function sortTasks(tasks) {
+  return [...tasks].sort((a, b) => {
+    const aOver = isOverdueByTime(a) ? 0 : 1;
+    const bOver = isOverdueByTime(b) ? 0 : 1;
+    if (aOver !== bOver) return aOver - bOver;
+
+    // Compara data
+    const dateA = a.dueDate || '9999-99-99';
+    const dateB = b.dueDate || '9999-99-99';
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+    // Mesma data: hora (sem hora vai pro fim)
+    const timeA = a.taskTime || '23:59';
+    const timeB = b.taskTime || '23:59';
+    if (timeA !== timeB) return timeA.localeCompare(timeB);
+
+    // Mesmo horário: importância
+    return impWeight(a.importance) - impWeight(b.importance);
+  });
+}
 //#endregion
 
 //#region CRUD de Tarefas
@@ -792,31 +832,38 @@ function renderToday() {
   const today = todayISO();
   renderSeasonalBanner('seasonal-banner-today');
 
-const todayTasks   = state.tasks.filter(t => (isToday(t) || isOverdue(t)) && t.status !== 'done');
-const futureTasks  = state.tasks.filter(t => t.dueDate && t.dueDate > today && t.status !== 'done');
+  // ── usa isOverdueByTime no lugar de isOverdue ──
+  const todayTasks  = sortTasks(
+    state.tasks.filter(t => (isToday(t) || isOverdueByTime(t)) && t.status !== 'done')
+  );
+  const futureTasks = sortTasks(
+    state.tasks.filter(t => t.dueDate && t.dueDate > today && t.status !== 'done')
+  );
 
   const done  = state.tasks.filter(t => t.status === 'done' && t.lastCompleted === todayISO()).length;
   const total = todayTasks.length + done;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
   const mins  = todayTasks.reduce((s, t) => s + (t.estimateMinutes || 0), 0);
 
-  document.getElementById('h-greeting').textContent = greeting();
-  document.getElementById('h-name').textContent = state.userName;
-  document.getElementById('h-avatar').textContent = state.userName[0].toUpperCase();
+  document.getElementById('h-greeting').textContent  = greeting();
+  document.getElementById('h-name').textContent      = state.userName;
+  document.getElementById('h-avatar').textContent    = state.userName[0].toUpperCase();
   document.getElementById('streak-count').textContent = state.streak;
 
-  document.getElementById('hero-date').textContent = friendlyDate();
+  document.getElementById('hero-date').textContent    = friendlyDate();
   document.getElementById('hero-summary').textContent =
-    `${todayTasks.length} tarefa${todayTasks.length!==1?'s':''} pendente`;
-  document.getElementById('hero-pct').textContent = `${pct}%`;
-  document.getElementById('hero-fill').style.width = `${pct}%`;
+    `${todayTasks.length} tarefa${todayTasks.length !== 1 ? 's' : ''} pendente`;
+  document.getElementById('hero-pct').textContent     = `${pct}%`;
+  document.getElementById('hero-fill').style.width    = `${pct}%`;
 
-  const nextTask = todayTasks.find(t => t.importance === 'Obrigatório') || todayTasks[0];
-  document.getElementById('hero-next-task').textContent = nextTask ? nextTask.title : 'Nenhuma tarefa pendente';
+  const nextTask = todayTasks[0]; // já ordenado: 1ª é a mais urgente
+  document.getElementById('hero-next-task').textContent =
+    nextTask ? nextTask.title : 'Nenhuma tarefa pendente';
 
-  const now    = todayTasks.filter(t => t.importance === 'Obrigatório' || t.importance === 'Necessário');
-  const ideas  = todayTasks.filter(t => t.importance === 'Ideia');
-  const later  = [
+  // ── seções: agora ordenação já veio do sortTasks ──
+  const now   = todayTasks.filter(t => t.importance === 'Obrigatório' || t.importance === 'Necessário');
+  const ideas = todayTasks.filter(t => t.importance === 'Ideia');
+  const later = [
     ...todayTasks.filter(t => t.importance === 'Padrão'),
     ...futureTasks,
   ];
@@ -830,6 +877,7 @@ const futureTasks  = state.tasks.filter(t => t.dueDate && t.dueDate > today && t
   else hint?.classList.add('hidden');
   window.initSectionCollapseBindings?.();
 }
+
 
 function greeting() {
   const h = new Date().getHours();
@@ -884,8 +932,16 @@ function createTaskCard(task) {
   let metaExtra = '';
   if (task.estimateMinutes) metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimateMinutes}</span>`;
   if (task.repeat && task.repeat !== 'none') metaExtra += `<span class="task-meta-extra"><i class="fa-solid fa-rotate"></i></span>`;
-  if (overdue && task.dueDate) metaExtra += `<span class="task-overdue-tag">Atrasada ${formatDate(task.dueDate)}</span>`;
-  else if (task.dueDate && task.dueDate !== todayISO()) metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-calendar"></i>${formatDate(task.dueDate)}</span>`;
+  const overdueByTime = isOverdueByTime(task);
+  if (overdueByTime) {
+    const sameDay = task.dueDate === todayISO();
+    const label   = sameDay && task.taskTime
+      ? `Atrasada desde ${task.taskTime}`
+      : `Atrasada ${formatDate(task.dueDate)}`;
+    metaExtra += `<span class="task-overdue-tag">${label}</span>`;
+  } else if (task.dueDate && task.dueDate !== todayISO()) {
+    metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-calendar"></i>${formatDate(task.dueDate)}</span>`;
+  }
   if (task.remindDate && task.status !== 'done')
     metaExtra += `<span class="task-remind-tag"><i class="fa-solid fa-bell"></i>${formatDate(task.remindDate)}</span>`;
   if (task.insistent && task.insistentMin && task.status !== 'done')
@@ -2346,14 +2402,14 @@ function initNotesCounter() {
 
 //#region Renderização - Planejamento
 function renderPlan() {
-  const view = state.planView;
+  const view      = state.planView;
   const filtersEl = document.getElementById('plan-filters');
   const content   = document.getElementById('plan-content');
   content.innerHTML = '';
 
   filtersEl.classList.add('hidden');
 
-  const overdueCount = state.tasks.filter(t => isOverdue(t) && t.status !== 'done').length;
+  const overdueCount = state.tasks.filter(t => isOverdueByTime(t) && t.status !== 'done').length;
   document.querySelectorAll('.plan-tab').forEach(tab => {
     const existing = tab.querySelector('.plan-tab-badge');
     if (existing) existing.remove();
@@ -2374,10 +2430,12 @@ function renderPlan() {
   } else {
     let tasks = [];
     let emptyMsg = 'Nenhuma tarefa aqui.';
-    if (view === 'today')    { tasks = state.tasks.filter(t => isToday(t) || isOverdue(t)); emptyMsg = 'Nenhuma tarefa para hoje.'; }
-    if (view === 'tomorrow') { tasks = state.tasks.filter(t => isTomorrow(t)); emptyMsg = 'Nenhuma tarefa para amanhã.'; }
-    if (view === 'week')     { tasks = state.tasks.filter(t => isThisWeek(t)); emptyMsg = 'Nenhuma tarefa essa semana.'; }
-    if (view === 'overdue')  { tasks = state.tasks.filter(t => isOverdue(t) && t.status !== 'done'); emptyMsg = 'Nada atrasado. Ótimo trabalho!'; }
+    if (view === 'today')    { tasks = state.tasks.filter(t => isToday(t) || isOverdueByTime(t)); emptyMsg = 'Nenhuma tarefa para hoje.'; }
+    if (view === 'tomorrow') { tasks = state.tasks.filter(t => isTomorrow(t));                    emptyMsg = 'Nenhuma tarefa para amanhã.'; }
+    if (view === 'week')     { tasks = state.tasks.filter(t => isThisWeek(t));                    emptyMsg = 'Nenhuma tarefa essa semana.'; }
+    if (view === 'overdue')  { tasks = state.tasks.filter(t => isOverdueByTime(t) && t.status !== 'done'); emptyMsg = 'Nada atrasado. Ótimo trabalho!'; }
+
+    tasks = sortTasks(tasks); // ← ordenação aplicada
 
     if (tasks.length === 0) {
       content.innerHTML = `<div class="plan-empty"><i class="fa-solid fa-circle-check"></i><p>${emptyMsg}</p></div>`;
@@ -2390,24 +2448,15 @@ function renderPlan() {
   }
 }
 
-function renderCatChipsPlan() {
-  const el = document.getElementById('cat-chips-plan');
-  el.innerHTML = '';
-  state.categories.forEach(cat => {
-    const count = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done').length;
-    const btn = document.createElement('button');
-    btn.className = `cat-chip${state.planCat === cat.id ? ' active' : ''}`;
-    btn.innerHTML = `<i class="${cat.icon}" style="color:${cat.color}"></i>${cat.name}<span class="cc-count">${count}</span>`;
-    btn.onclick = () => { state.planCat = state.planCat === cat.id ? null : cat.id; renderPlan(); };
-    el.appendChild(btn);
-  });
-}
-
 function renderPlanByCategory(container) {
-  const cats = state.planCat ? state.categories.filter(c => c.id === state.planCat) : state.categories;
+  const cats = state.planCat
+    ? state.categories.filter(c => c.id === state.planCat)
+    : state.categories;
   let any = false;
   cats.forEach(cat => {
-    const tasks = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done');
+    const tasks = sortTasks(
+      state.tasks.filter(t => t.catId === cat.id && t.status !== 'done')
+    );
     if (tasks.length === 0) return;
     any = true;
     const group = document.createElement('div');
@@ -2422,11 +2471,18 @@ function renderPlanByCategory(container) {
 }
 
 function renderPlanByPriority(container) {
-  const order = ['Obrigatório','Necessário','Padrão','Ideia'];
-  const icons  = { Obrigatório:'fa-solid fa-circle-exclamation', Necessário:'fa-solid fa-circle-dot', Padrão:'fa-solid fa-circle', Ideia:'fa-regular fa-lightbulb' };
+  const order = ['Obrigatório', 'Necessário', 'Padrão', 'Ideia'];
+  const icons  = {
+    Obrigatório: 'fa-solid fa-circle-exclamation',
+    Necessário:  'fa-solid fa-circle-dot',
+    Padrão:      'fa-solid fa-circle',
+    Ideia:       'fa-regular fa-lightbulb',
+  };
   let any = false;
   order.forEach(imp => {
-    const tasks = state.tasks.filter(t => t.importance === imp && t.status !== 'done');
+    const tasks = sortTasks(
+      state.tasks.filter(t => t.importance === imp && t.status !== 'done')
+    );
     if (tasks.length === 0) return;
     any = true;
     const group = document.createElement('div');
@@ -2438,6 +2494,19 @@ function renderPlanByPriority(container) {
     container.appendChild(group);
   });
   if (!any) container.innerHTML = `<div class="plan-empty"><i class="fa-solid fa-check-double"></i><p>Nenhuma tarefa pendente.</p></div>`;
+}
+
+function renderCatChipsPlan() {
+  const el = document.getElementById('cat-chips-plan');
+  el.innerHTML = '';
+  state.categories.forEach(cat => {
+    const count = state.tasks.filter(t => t.catId === cat.id && t.status !== 'done').length;
+    const btn = document.createElement('button');
+    btn.className = `cat-chip${state.planCat === cat.id ? ' active' : ''}`;
+    btn.innerHTML = `<i class="${cat.icon}" style="color:${cat.color}"></i>${cat.name}<span class="cc-count">${count}</span>`;
+    btn.onclick = () => { state.planCat = state.planCat === cat.id ? null : cat.id; renderPlan(); };
+    el.appendChild(btn);
+  });
 }
 //#endregion
 
