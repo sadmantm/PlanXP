@@ -166,15 +166,13 @@ function restoreRemindPickers(task) {
 
 async function pollJob(endpoint, body, existingJobId = null) {
   let jobId = existingJobId;
+  const token = getToken();
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
   if (!jobId) {
-    const token = getToken();
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json', ...authHeader },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -185,15 +183,14 @@ async function pollJob(endpoint, body, existingJobId = null) {
 
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 1500));
-    const poll = await fetch(`/api/job/${jobId}`);
-    if (!poll.ok) throw new Error(`Poll HTTP ${poll.status}`); // era poll.ok — bug aqui
+    const poll = await fetch(`/api/job/${jobId}`, { headers: authHeader });
+    if (!poll.ok) throw new Error(`Poll HTTP ${poll.status}`);
     const job = await poll.json();
     if (job.status === 'done')  return job.result;
     if (job.status === 'error') throw new Error(job.error || 'Job falhou');
   }
   throw new Error('Timeout no job de IA');
 }
-
 //#endregion
 
 //#region Cálculo da data de lembrete antecipado
