@@ -1003,7 +1003,7 @@ function renderTaskList(listId, tasks, emptyId, isIdeas = false) {
 }
 
 function createTaskCard(task) {
-  const cat = state.categories.find(c => c.id === task.catId) || { name:'Geral', color:'#7C6FCD', icon:'fa-solid fa-circle' };
+  const cat = getCatSafe(task.catId);
   const impClass = { Obrigatório:'imp-mandatory', Necessário:'imp-necessary', Padrão:'imp-standard', Ideia:'imp-idea' }[task.importance] || 'imp-standard';
   const xp = computeXP(task.importance);
   const overdue = isOverdueByTime(task); // ← corrigido
@@ -1075,6 +1075,16 @@ function createTaskCard(task) {
   });
   return card;
 }
+
+function getCatSafe(catId) {
+  const cat = state.categories.find(c => c.id === catId);
+  return {
+    name:  cat?.name  || 'Geral',
+    color: cat?.color || '#7C6FCD',
+    icon:  cat?.icon  || 'fa-solid fa-circle',
+  };
+}
+
 //#endregion
 
 //#region Interações de Tarefa (Gestos)
@@ -3444,11 +3454,40 @@ function saveTask() {
 }
 
 function openAddCat() {
+  // Garante defaults antes de abrir o sheet
   state._newCatColor = CAT_COLORS[0];
   state._newCatIcon  = CAT_FA_ICONS[0].icon;
+
   document.getElementById('cat-name-input').value = '';
-  renderColorPicker(); renderIconPicker();
+  renderColorPicker();
+  renderIconPicker();
   openSheet('add-cat-sheet');
+}
+
+function saveCat() {
+  const name = document.getElementById('cat-name-input').value.trim();
+  if (!name) return;
+
+  // Guard: nome duplicado
+  if (state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+    showToast?.('Já existe uma categoria com esse nome.');
+    return;
+  }
+
+  // Guard: ícone/cor com fallback explícito (nunca undefined)
+  const icon  = state._newCatIcon  || CAT_FA_ICONS[0].icon;
+  const color = state._newCatColor || CAT_COLORS[0];
+
+  state.categories.push({
+    id: `cat_${Date.now()}`,
+    name,
+    icon,
+    color,
+  });
+
+  save();
+  closeSheet('add-cat-sheet');
+  renderAll();
 }
 
 function renderColorPicker() {
@@ -3478,7 +3517,19 @@ function renderIconPicker() {
 function saveCat() {
   const name = document.getElementById('cat-name-input').value.trim();
   if (!name) return;
-  state.categories.push({ id: `cat_${Date.now()}`, name, icon: state._newCatIcon, color: state._newCatColor });
+  
+  // Evita duplicata de nome
+  if (state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+    showToast('Já existe uma categoria com esse nome.');
+    return;
+  }
+
+  state.categories.push({ 
+    id: `cat_${Date.now()}`, 
+    name, 
+    icon: state._newCatIcon, 
+    color: state._newCatColor 
+  });
   save();
   closeSheet('add-cat-sheet');
   renderAll();
