@@ -155,7 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Categoria
-  document.getElementById('save-cat-btn')?.addEventListener('click', saveCat);
+  document.addEventListener('click', e => {
+    if (e.target.closest('#save-cat-btn')) saveCat();
+  });
   document.getElementById('plan-add-cat')?.addEventListener('click', openAddCat);
 
   // Sheet backdrops
@@ -171,8 +173,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tab.classList.add('active');
     renderPlan();
   });
-
-  document.getElementById('save-cat-btn')?.addEventListener('click', saveCat);
 
   // Focus timer
   document.getElementById('focus-start')?.addEventListener('click', startTimer);
