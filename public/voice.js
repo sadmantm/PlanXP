@@ -667,7 +667,7 @@ async function stopAndProcess() {
   fab.style.pointerEvents = 'none';
 
   try {
-    updateGenCard(genCard, 'Analisando tarefas...');
+    updateGenCard(genCard, 'Transcrevendo áudio...');
 
     const mime = audioBlob.type || 'audio/webm';
     const ext  = mime.includes('ogg') ? 'ogg' : mime.includes('mp4') ? 'mp4' : 'webm';
@@ -682,31 +682,64 @@ async function stopAndProcess() {
     });
     if (!res.ok) throw new Error(`Transcrição HTTP ${res.status}`);
     const { transcription, jobId } = await res.json();
-
     if (!transcription) throw new Error('Transcrição vazia');
+
     const preview = transcription.slice(0, 60) + (transcription.length > 60 ? '…' : '');
     updateGenCard(genCard, `"${preview}" — identificando tarefas...`);
 
-    // polling do job já iniciado no backend
-    const result  = await pollJob(null, null, jobId);
-    const raw     = result.content?.find(b => b.type === 'text')?.text || '[]';
-    const cleaned = raw.replace(/```json|```/g, '').trim();
+    // Polling simples sem depender de pollJob externo
+    await waitForJob(jobId);
 
-    let parsedArr;
-    try { parsedArr = JSON.parse(cleaned); }
-    catch { const m = cleaned.match(/\[[\s\S]*\]/); parsedArr = m ? JSON.parse(m[0]) : []; }
+    // Backend já salvou no banco — só recarrega o state do servidor
+    updateGenCard(genCard, 'Sincronizando tarefas...');
+    await syncStateFromServer();
 
     genCard.remove();
     fab.style.pointerEvents = '';
-    if (Array.isArray(parsedArr) && parsedArr.length > 0) {
-      prefillTaskSheet(parsedArr, transcription);
-    }
+    showXPToast('Tarefa criada por voz!');
+    renderAll();
 
   } catch (err) {
     console.error('[stopAndProcess]', err);
     genCard.remove();
-    showXPToast('Erro ao processar voz. Tente novamente.');
     fab.style.pointerEvents = '';
+    showXPToast('Erro ao processar voz. Tente novamente.');
+  }
+}
+
+// Polling local — não depende de pollJob externo
+async function waitForJob(jobId, maxWaitMs = 30000, intervalMs = 1200) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, intervalMs));
+    try {
+      const res = await fetch(`/api/job/${jobId}`);
+      if (!res.ok) continue;
+      const job = await res.json();
+      if (job.status === 'done')  return job.result;
+      if (job.status === 'error') throw new Error(job.error || 'Job falhou no servidor');
+    } catch (err) {
+      if (err.message.includes('Job falhou')) throw err;
+      // erro de rede — tenta de novo
+    }
+  }
+  throw new Error('Timeout aguardando processamento da IA');
+}
+
+// Recarrega o state do backend e atualiza o state local em memória
+async function syncStateFromServer() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch('/api/auth/auto-login', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const { state: remoteState } = await res.json();
+    if (remoteState) Object.assign(state, remoteState);
+  } catch (err) {
+    console.warn('[syncStateFromServer] falhou:', err.message);
   }
 }
 
