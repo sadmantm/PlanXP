@@ -292,12 +292,24 @@ textarea {
 
 /* ── Overdue: destaque vermelho pulsante ── */
 .task-card.overdue {
-  border-color: rgba(239,71,111,0.35);
-  box-shadow: 0 0 0 0 rgba(239,71,111,0.0);
-  animation: overdue-pulse 2.8s ease-in-out infinite;
+  border-color: rgba(239, 71, 111, 0.35);
+  animation: overdue-flash 3.5s ease-in-out infinite;
 }
-.task-card.overdue::before { background: #EF476F !important; }
-.task-card.overdue .task-title { color: #EF8FA8; }
+
+.task-card.overdue::before {
+  background: #EF476F !important;
+}
+
+.task-card.overdue .task-title {
+  color: #EF8FA8;
+}
+
+@keyframes overdue-flash {
+  0%   { background: var(--bg-card); }
+  50%  { background: rgba(239, 71, 111, 0.07); }
+  100% { background: var(--bg-card); }
+}
+
 
 @keyframes overdue-pulse {
   0%   { box-shadow: 0 0 0 0   rgba(239,71,111,0.0); }
