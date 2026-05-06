@@ -3107,8 +3107,12 @@ history.pushState(null, '');
     if (currentIndex() === -1) return;
 
     // Ignora se o toque começou dentro de um card de tarefa ou subtarefa
-    if (e.target.closest('.task-card, .subtask-item, .mission-card, .mtc-subtask, .mission-task-card, .plan-tabs, .cat-chips-plan')) {
-      decided = true; isSwipe = false; return;
+    if (e.target.closest(
+      '.task-card, .subtask-item, .mission-card, .mtc-subtask, .mission-task-card, .plan-tabs, .cat-chips, .cat-chip'
+    )) {
+      decided = true;
+      isSwipe = false;
+      return;
     }
 
     touchStartX = e.touches[0].clientX;
