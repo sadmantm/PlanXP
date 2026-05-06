@@ -796,7 +796,9 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
   res.json({ transcription, jobId });
 
   // Tudo daqui para baixo roda no backend independente do frontend
-  const { systemPrompt, userPrompt } = buildVoiceParsePrompt(transcription, payload.sub);
+  const clientTodayISO      = req.body.clientTodayISO || null;
+const clientOffsetMinutes = parseInt(req.body.clientOffsetMinutes) || null;
+const { systemPrompt, userPrompt } = buildVoiceParsePrompt(transcription, payload.sub, clientTodayISO, clientOffsetMinutes);
   const fullPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
 
   console.log(`[transcribe] job ${jobId} iniciado para user ${payload.sub}`);

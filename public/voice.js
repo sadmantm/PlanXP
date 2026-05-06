@@ -664,7 +664,6 @@ async function waitForJob(jobId, maxWaitMs = 30000, intervalMs = 1200) {
         continue;
       }
       const job = await res.json();
-      console.log(`[waitForJob] status: ${job.status}`);
       if (job.status === 'done')  return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Job falhou no servidor');
     } catch (err) {
