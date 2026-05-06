@@ -3491,20 +3491,20 @@ function renderIconPicker() {
 
 function saveCat() {
   const name = document.getElementById('cat-name-input').value.trim();
+  console.log('[saveCat] digitado:', name);
+  console.log('[saveCat] nomes no state:', state.categories.map(c => c.name));
   if (!name) return;
-  
-  // Evita duplicata de nome
-  if (state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-    showSnackbar('Já existe uma categoria com esse nome.');
-    return;
-  }
 
-  state.categories.push({ 
-    id: `cat_${Date.now()}`, 
-    name, 
-    icon: state._newCatIcon, 
-    color: state._newCatColor 
-  });
+  // Comente o guard temporariamente
+  // if (state.categories.some(...)) { ... return; }
+
+  const icon  = state._newCatIcon  || CAT_FA_ICONS[0].icon;
+  const color = state._newCatColor || CAT_COLORS[0];
+  console.log('[saveCat] icon:', icon, '| color:', color);
+
+  state.categories.push({ id: `cat_${Date.now()}`, name, icon, color });
+  console.log('[saveCat] após push:', state.categories.map(c => c.name));
+
   save();
   closeSheet('add-cat-sheet');
   renderAll();
