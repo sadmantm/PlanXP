@@ -63,6 +63,12 @@ async function init() {
 
   localStorage.setItem('dxp2_lastopen', today);
   renderMissions();
+  state.categories = state.categories.map(c => ({
+    ...c,
+    icon:  c.icon  || 'fa-solid fa-circle',
+    color: c.color || '#7C6FCD',
+  }));
+  save();
 }
 
 async function resumePendingVoiceJob() {
