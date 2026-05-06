@@ -3056,7 +3056,11 @@ history.pushState(null, '');
       if (header._collapsebound) return;
       header._collapsebound = true;
       header.style.cursor = 'pointer';
-      header.addEventListener('click', () => toggle(key));
+      header.addEventListener('click', (e) => {
+        // Só dispara se o clique veio do próprio header ou do chevron
+        if (e.target !== header && !e.target.closest(`#${chevronId}`)) return;
+        toggle(key);
+      });
     });
   }
 
