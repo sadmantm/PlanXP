@@ -517,7 +517,6 @@ function addXP(amount) {
   saveDailyHistory(); // ← garante que dailyHistory é atualizado junto
 }
 
-
 function checkLevelUp() {
   let leveled = false;
   while (state.totalXP >= xpForLevel(state.level)) {
@@ -3496,7 +3495,7 @@ function saveCat() {
   
   // Evita duplicata de nome
   if (state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-    showToast('Já existe uma categoria com esse nome.');
+    showSnackbar('Já existe uma categoria com esse nome.');
     return;
   }
 
