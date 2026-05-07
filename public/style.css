@@ -595,7 +595,8 @@ textarea {
 }
 .mtc-swipe-layer {
   will-change: transform;
-  transition: transform 0.05s, opacity 0.05s;
+  touch-action: pan-y;   /* browser só intercepta scroll vertical, deixa horizontal pro JS */
+  border-radius: var(--radius-card); /* mantém bordas arredondadas sem o clip do pai */
 }
 
 @keyframes cat-chip-fill {
@@ -2381,26 +2382,6 @@ textarea {
   will-change: transform;
 }
 
-/* ── MISSION TASK CARD (task expandida com subtasks) ─────── */
-.mission-task-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  border: 1px solid rgba(124, 111, 205, 0.35);
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(124,111,205,0.08), 0 4px 18px rgba(0,0,0,0.18);
-}
-
-/* Faixa colorida lateral */
-.mission-task-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, var(--accent, #7C6FCD), #4ECDC4);
-  border-radius: 3px 0 0 3px;
-}
-
 /* ── Cabeçalho da missão ── */
 .mtc-header {
   display: flex;
@@ -2679,26 +2660,6 @@ textarea {
   background: var(--accent-teal, #4ECDC4);
 }
 
-/* ── MISSION TASK CARD (task expandida com subtasks) ─────── */
-.mission-task-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  border: 1px solid rgba(124, 111, 205, 0.35);
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(124,111,205,0.08), 0 4px 18px rgba(0,0,0,0.18);
-}
-
-/* Faixa colorida lateral */
-.mission-task-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, var(--accent, #7C6FCD), #4ECDC4);
-  border-radius: 3px 0 0 3px;
-}
-
 /* ── Cabeçalho da missão ── */
 .mtc-header {
   display: flex;
@@ -2957,6 +2918,15 @@ textarea {
 
 .mission-task-card.all-done::before {
   background: var(--accent-teal, #4ECDC4);
+}
+
+.mission-task-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(124, 111, 205, 0.35);
+  position: relative;
+  /* overflow: hidden → REMOVIDO, cortava o translateX do swipe-layer */
+  box-shadow: 0 0 0 1px rgba(124,111,205,0.08), 0 4px 18px rgba(0,0,0,0.18);
 }
 /* ── Task type toggle (Tarefa / Missão) ─────────────── */
 .task-type-toggle {

@@ -1726,23 +1726,24 @@ function setupMissionSwipe(card, taskId) {
   card.addEventListener('touchmove', e => {
     if (!active) return;
     if (e.target.closest('.mtc-subtasks')) { resetVisual(); return; }
-
+  
     const curX = e.touches[0].clientX;
     const curY = e.touches[0].clientY;
     dx         = curX - sx;
     const dy   = curY - sy;
-
+  
     if (!dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6))
       dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
-
+  
     if (dirLocked === 'v') { resetVisual(); return; }
     if (dirLocked !== 'h') return;
-
+  
+    e.preventDefault(); // agora pode, pois não é passive
     if (Math.abs(dx) > SWIPE_THRESHOLD) card._isSwiping = true;
-
+  
     const clamped = Math.max(-120, Math.min(120, dx));
     layer.style.transform = `translateX(${clamped}px)`;
-
+  
     if (dx < 0) {
       const ratio = Math.min(Math.abs(dx) / SWIPE_ACTION_LEFT, 1);
       layer.style.opacity = String(1 - ratio * 0.45);
@@ -1752,9 +1753,9 @@ function setupMissionSwipe(card, taskId) {
       const ratio = Math.min(dx / SWIPE_ACTION_RIGHT, 1);
       card.style.setProperty('--swipe-hint-color', `rgba(124,111,205,${ratio * 0.18})`);
     }
-
+  
     card.style.background = 'var(--swipe-hint-color, transparent)';
-  }, { passive: true });
+  }, { passive: false }); // ← mudou aqui
 
   card.addEventListener('touchend', () => {
     if (!active) return;
