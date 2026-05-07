@@ -1744,19 +1744,24 @@ function setupMissionSwipe(card, taskId) {
     if (dirLocked !== 'h') return;
 
     e.preventDefault();
-    if (Math.abs(dx) > SWIPE_THRESHOLD) card._isSwiping = true;
+    if (Math.abs(dx) > SWIPE_THRESHOLD && dx < 0) card._isSwiping = true;
 
     const clamped = Math.max(-120, Math.min(120, dx));
     layer.style.transform = `translateX(${clamped}px)`;
 
     if (dx < 0) {
+      const clamped = Math.max(-120, dx);
+      layer.style.transform = `translateX(${clamped}px)`;
       const ratio = Math.min(Math.abs(dx) / SWIPE_ACTION_LEFT, 1);
       layer.style.opacity = String(1 - ratio * 0.45);
       card.style.setProperty('--swipe-hint-color', `rgba(239,71,111,${ratio * 0.18})`);
+      card.style.background = 'var(--swipe-hint-color, transparent)';
     } else {
+      // direita: sem ação — deixa o card "resistir" ao arrasto
+      const resisted = Math.min(dx * 0.25, 20); // arrasta só um pouquinho e trava
+      layer.style.transform = `translateX(${resisted}px)`;
       layer.style.opacity = '';
-      const ratio = Math.min(dx / SWIPE_ACTION_RIGHT, 1);
-      card.style.setProperty('--swipe-hint-color', `rgba(124,111,205,${ratio * 0.18})`);
+      card.style.background = '';
     }
     card.style.background = 'var(--swipe-hint-color, transparent)';
   }, { passive: false });
@@ -1767,8 +1772,7 @@ function setupMissionSwipe(card, taskId) {
     const lastDx   = dx;
     resetAll();
     if (!wasSwipe) return;
-    if      (lastDx < -SWIPE_ACTION_LEFT)  openDeleteModal(taskId);
-    else if (lastDx >  SWIPE_ACTION_RIGHT) openTaskContextMenu(taskId, card);
+    if (lastDx < -SWIPE_ACTION_LEFT) openDeleteModal(taskId);
   });
 
   card.addEventListener('touchcancel', resetAll);
