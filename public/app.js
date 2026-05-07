@@ -2076,7 +2076,6 @@ function setupSubtaskSwipe(item, parentTaskId, stId) {
   }
 
   item.addEventListener('touchstart', e => {
-    // Não inicia swipe se a subtask já foi concluída
     const st = state.tasks
       .find(t => t.id === parentTaskId)?.subtasks
       ?.find(s => s.id === stId);
@@ -2091,7 +2090,6 @@ function setupSubtaskSwipe(item, parentTaskId, stId) {
   item.addEventListener('touchmove', e => {
     if (!active) return;
 
-    // Se a subtask foi concluída durante o arrasto, cancela imediatamente
     const st = state.tasks
       .find(t => t.id === parentTaskId)?.subtasks
       ?.find(s => s.id === stId);
@@ -2107,6 +2105,10 @@ function setupSubtaskSwipe(item, parentTaskId, stId) {
 
     if (dirLocked === 'v') { resetVisual(); return; }
     if (dirLocked !== 'h') return;
+
+    e.preventDefault(); // ← bloqueia scroll do browser ao confirmar horizontal
+    e.stopPropagation(); // ← impede que o touchmove chegue ao card pai (missão)
+
     if (Math.abs(dx) > 10) item._isSwiping = true;
 
     const clamped = Math.max(-110, Math.min(110, dx));
@@ -2119,32 +2121,34 @@ function setupSubtaskSwipe(item, parentTaskId, stId) {
       item.classList.add('swiping-left');
       item.classList.remove('swiping-right');
     } else {
-      const ratio = Math.min(dx / SUBTASK_SWIPE_CTX, 1);
-      item.style.background = `rgba(124,111,205,${ratio * 0.18})`;
+      item.style.background = `rgba(124,111,205,${Math.min(dx / SUBTASK_SWIPE_CTX, 1) * 0.18})`;
       item.classList.add('swiping-right');
       item.classList.remove('swiping-left');
     }
-  }, { passive: true });
+  }, { passive: false }); // ← era passive: true, agora false para poder chamar preventDefault
 
-  item.addEventListener('touchend', () => {
+  item.addEventListener('touchend', e => {
     if (!active) return;
+    e.stopPropagation(); // ← impede touchend de chegar ao card pai
     const wasSwiping = item._isSwiping;
     const lastDx = dx;
     resetVisual();
 
     if (!wasSwiping) return;
 
-    // Checa estado atual antes de agir
     const st = state.tasks
       .find(t => t.id === parentTaskId)?.subtasks
       ?.find(s => s.id === stId);
     if (!st || st.done) return;
 
-    if (lastDx < -SUBTASK_SWIPE_DELETE)   openDeleteSubtaskModal(parentTaskId, stId);
-    else if (lastDx > SUBTASK_SWIPE_CTX)  openSubtaskContextMenu(parentTaskId, stId, item);
+    if (lastDx < -SUBTASK_SWIPE_DELETE)  openDeleteSubtaskModal(parentTaskId, stId);
+    else if (lastDx > SUBTASK_SWIPE_CTX) openSubtaskContextMenu(parentTaskId, stId, item);
   });
 
-  item.addEventListener('touchcancel', resetVisual);
+  item.addEventListener('touchcancel', e => {
+    e.stopPropagation();
+    resetVisual();
+  });
 }
 
 (function injectDeleteSubtaskModal() {
