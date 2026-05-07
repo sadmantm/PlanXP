@@ -766,28 +766,59 @@ function completeTask(id) {
   confetti({ particleCount: 45, spread: 55, origin: { y: 0.55 },
              colors: ['#4ECDC4','#7C6FCD','#FFD166'], scalar: 0.85 });
 
-  // ── Bridge: cancela alarme e dispensa notificação persistente ──
   NativeBridge.cancelAlarm(id);
   NativeBridge.dismissNotification(id);
 
   pushUndo(snapshot, 'Tarefa concluída');
-  save();
+  _persist(); // ← imediato, sem debounce
   if (task.empresaId && task._empresaAtribuidaRowId) {
     _syncTarefaEmpresaConcluida(task._empresaAtribuidaRowId).catch(() => {});
   }
-  renderAll(); // syncAll() é chamado dentro de renderAll
+  renderAll();
 }
 
 function deleteTask(id) {
   const snapshot = state.tasks.map(t => ({...t}));
   state.tasks = state.tasks.filter(t => t.id !== id);
-  pushUndo({ tasks: state.tasks.map(t=>({...t})), totalXP: state.totalXP, todayXP: state.todayXP, coins: state.coins, tasksCompleted: state.tasksCompleted, streak: state.streak, lastActiveDate: state.lastActiveDate }, 'Tarefa removida');
+  pushUndo({
+    tasks: state.tasks.map(t => ({...t})),
+    totalXP: state.totalXP, todayXP: state.todayXP,
+    coins: state.coins, tasksCompleted: state.tasksCompleted,
+    streak: state.streak, lastActiveDate: state.lastActiveDate,
+  }, 'Tarefa removida');
 
-  // ── Bridge: cancela alarme da tarefa deletada ──
   NativeBridge.cancelAlarm(id);
   NativeBridge.dismissNotification(id);
 
-  save();
+  _persist(); // ← imediato, sem debounce
+  renderAll();
+}
+
+function reactivateTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+
+  task.status = 'todo';
+  task.lastCompleted = null;
+
+  if (task.xpEarned) {
+    state.totalXP        = Math.max(0, state.totalXP        - task.xpEarned);
+    state.todayXP        = Math.max(0, state.todayXP        - task.xpEarned);
+    state.coins          = Math.max(0, state.coins          - Math.floor(task.xpEarned / 30));
+    state.tasksCompleted = Math.max(0, state.tasksCompleted - 1);
+    checkLevelUp();
+    task.xpEarned = 0;
+  }
+
+  pushUndo({
+    tasks: state.tasks.map(t => ({...t})),
+    totalXP: state.totalXP, todayXP: state.todayXP,
+    coins: state.coins, tasksCompleted: state.tasksCompleted,
+    streak: state.streak, lastActiveDate: state.lastActiveDate,
+  }, 'Tarefa reativada');
+
+  _persist(); // ← imediato, sem debounce
+  saveDailyHistory();
   renderAll();
 }
 
@@ -904,13 +935,18 @@ function initPostponeBindings() {
 function renderToday() {
   const today = todayISO();
   renderSeasonalBanner('seasonal-banner-today');
-
-  // ── usa isOverdueByTime no lugar de isOverdue ──
-  const todayTasks  = sortTasks(
-    state.tasks.filter(t => (isToday(t) || isOverdueByTime(t)) && t.status !== 'done')
+  const todayTasks = sortTasks(
+    state.tasks.filter(t => {
+      if (t.status === 'done') return false;          // ← garante exclusão imediata
+      return isToday(t) || isOverdueByTime(t);
+    })
   );
+  
   const futureTasks = sortTasks(
-    state.tasks.filter(t => t.dueDate && t.dueDate > today && t.status !== 'done')
+    state.tasks.filter(t => {
+      if (t.status === 'done') return false;          // ← mesmo critério
+      return t.dueDate && t.dueDate > today;
+    })
   );
 
   const done  = state.tasks.filter(t => t.status === 'done' && t.lastCompleted === todayISO()).length;
@@ -958,7 +994,6 @@ function renderToday() {
   else hint?.classList.add('hidden');
   window.initSectionCollapseBindings?.();
 }
-
 
 function greeting() {
   const h = new Date().getHours();
@@ -1241,30 +1276,6 @@ function openReactivate(id) {
   if (nameEl) nameEl.textContent = `"${task.title}" será marcada como pendente novamente.`;
 
   openSheet('reactivate-sheet');
-}
-
-function reactivateTask(id) {
-  const task = state.tasks.find(t => t.id === id);
-  if (!task) return;
-
-  const snapshot = state.tasks.map(t => ({ ...t }));
-  task.status = 'todo';
-  task.lastCompleted = null;
-
-  // Reverte o XP ganho se houver registro
-  if (task.xpEarned) {
-    state.totalXP  = Math.max(0, state.totalXP  - task.xpEarned);
-    state.todayXP  = Math.max(0, state.todayXP  - task.xpEarned);
-    state.coins    = Math.max(0, state.coins     - Math.floor(task.xpEarned / 30));
-    state.tasksCompleted = Math.max(0, state.tasksCompleted - 1);
-    checkLevelUp();        // recalcula nível após dedução
-    task.xpEarned = 0;
-  }
-
-  pushUndo({ tasks: state.tasks.map(t=>({...t})), totalXP: state.totalXP, todayXP: state.todayXP, coins: state.coins, tasksCompleted: state.tasksCompleted, streak: state.streak, lastActiveDate: state.lastActiveDate }, 'Tarefa reativada');
-  save();
-  saveDailyHistory();
-  renderAll();
 }
 
 // ── WIRE UP DOS BOTÕES (chame esta função no seu init / DOMContentLoaded) ──
