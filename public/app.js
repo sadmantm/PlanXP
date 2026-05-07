@@ -1696,6 +1696,8 @@ function setupMissionSwipe(card, taskId) {
 
   let sx = 0, sy = 0, dx = 0, active = false, dirLocked = null;
 
+  console.log('Swipe configurado para missão', taskId);
+
   function resetVisual() {
     movables.forEach(el => {
       el.style.transform = '';
