@@ -1104,11 +1104,6 @@ function createTaskCard(task) {
 
   card.querySelector('.action-postpone')?.addEventListener('click', e => { e.stopPropagation(); openPostpone(task.id); });
   card.querySelector('.action-delete')?.addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); });
-  card.querySelector('.task-title')?.addEventListener('click', e => {
-    e.stopPropagation();
-    e.target.classList.toggle('expanded');
-    card.querySelector('.task-notes')?.classList.toggle('expanded');
-  });
   return card;
 }
 
@@ -1177,7 +1172,9 @@ function setupHold(card, id) {
       if (now - _lastTap < 300) return;
       _lastTap = now;
       const titleEl = card.querySelector('.task-title');
+      const notesEl = card.querySelector('.task-notes');
       titleEl?.classList.toggle('expanded');
+      notesEl?.classList.toggle('expanded');
     }
   }
 
