@@ -1680,8 +1680,103 @@ function createMissionCard(task) {
     openAddSubtaskSheet(task.id);
   });
 
+  if (task.status !== 'done') {
+    setupMissionSwipe(card, task.id);
+  }
+
   return card;
 }
+
+function setupMissionSwipe(card, taskId) {
+  // Elementos que se movem visualmente durante o swipe
+  const movables = [
+    card.querySelector('.mtc-header'),
+    card.querySelector('.mtc-progress-wrap'),
+  ].filter(Boolean);
+
+  let sx = 0, sy = 0, dx = 0, active = false, dirLocked = null;
+
+  function resetVisual() {
+    movables.forEach(el => {
+      el.style.transform = '';
+      el.style.opacity   = '';
+    });
+    card.style.background = '';
+    card.style.removeProperty('--swipe-hint-color');
+    active          = false;
+    card._isSwiping = false;
+    dx              = 0;
+  }
+
+  card.addEventListener('touchstart', e => {
+    // Ignora toques que começaram dentro da área de subtasks
+    if (e.target.closest('.mtc-subtasks')) return;
+    // Ignora botão "+"
+    if (e.target.closest('.mtc-add-btn'))  return;
+
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    dx = 0;
+    active          = true;
+    dirLocked       = null;
+    card._isSwiping = false;
+    resetVisual();
+  }, { passive: true });
+
+  card.addEventListener('touchmove', e => {
+    if (!active) return;
+    // Subtask ou botão iniciaram o toque — ignora
+    if (e.target.closest('.mtc-subtasks')) { resetVisual(); return; }
+
+    const curX = e.touches[0].clientX;
+    const curY = e.touches[0].clientY;
+    dx         = curX - sx;
+    const dy   = curY - sy;
+
+    if (!dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+
+    if (dirLocked === 'v') { resetVisual(); return; }
+    if (dirLocked !== 'h') return;
+
+    // A partir daqui é swipe horizontal confirmado
+    if (Math.abs(dx) > SWIPE_THRESHOLD) card._isSwiping = true;
+
+    const clamped = Math.max(-120, Math.min(120, dx));
+
+    movables.forEach(el => {
+      el.style.transform = `translateX(${clamped}px)`;
+    });
+
+    if (dx < 0) {
+      const ratio = Math.min(Math.abs(dx) / SWIPE_ACTION_LEFT, 1);
+      movables.forEach(el => { el.style.opacity = String(1 - ratio * 0.45); });
+      card.style.setProperty('--swipe-hint-color', `rgba(239,71,111,${ratio * 0.18})`);
+    } else {
+      const ratio = Math.min(dx / SWIPE_ACTION_RIGHT, 1);
+      card.style.setProperty('--swipe-hint-color', `rgba(124,111,205,${ratio * 0.18})`);
+    }
+
+    card.style.background = 'var(--swipe-hint-color, transparent)';
+  }, { passive: true });
+
+  card.addEventListener('touchend', () => {
+    if (!active) return;
+
+    const wasSwipe = card._isSwiping;
+    const lastDx   = dx;
+    resetVisual();
+
+    if (!wasSwipe) return;
+
+    if      (lastDx < -SWIPE_ACTION_LEFT)  openDeleteModal(taskId);
+    else if (lastDx >  SWIPE_ACTION_RIGHT) openTaskContextMenu(taskId, card);
+  });
+
+  card.addEventListener('touchcancel', resetVisual);
+}
+
 
 function openAddSubtaskSheet(missionTaskId) {
   _addSubtaskTargetId = missionTaskId;
