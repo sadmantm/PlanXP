@@ -1619,45 +1619,49 @@ function createMissionCard(task) {
 
   if (allDone) card.classList.add('all-done');
 
+  // ── FIX: mtc-swipe-layer envolve header + progress e é o alvo do translateX
+  // O bloco .mtc-subtasks fica FORA do layer, não é arrastado e não é cortado.
   card.innerHTML = `
-    <div class="mtc-header" id="mtc-header-${task.id}">
-      <div class="mtc-icon"><i class="fa-solid fa-crosshairs"></i></div>
-      <div class="mtc-info">
-        <div class="mtc-title">${escHtml(task.missionTitle || task.title)}</div>
-        <div class="mtc-meta">
-          <span class="mtc-badge">
-            <i class="fa-solid fa-list-check" style="margin-right:3px;font-size:9px;"></i>
-            ${doneCount}/${subtasks.length} subtarefas
-          </span>
-          ${task.estimatedMinutes
-            ? `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimatedMinutes}</span>`
-            : ''}
-          ${task.notes
-            ? `<span class="task-meta-extra" title="${escHtml(task.notes)}"><i class="fa-solid fa-align-left"></i></span>`
-            : ''}
+    <div class="mtc-swipe-layer">
+      <div class="mtc-header" id="mtc-header-${task.id}">
+        <div class="mtc-icon"><i class="fa-solid fa-crosshairs"></i></div>
+        <div class="mtc-info">
+          <div class="mtc-title">${escHtml(task.missionTitle || task.title)}</div>
+          <div class="mtc-meta">
+            <span class="mtc-badge">
+              <i class="fa-solid fa-list-check" style="margin-right:3px;font-size:9px;"></i>
+              ${doneCount}/${subtasks.length} subtarefas
+            </span>
+            ${task.estimatedMinutes
+              ? `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimatedMinutes}</span>`
+              : ''}
+            ${task.notes
+              ? `<span class="task-meta-extra" title="${escHtml(task.notes)}"><i class="fa-solid fa-align-left"></i></span>`
+              : ''}
+          </div>
         </div>
+        <span class="mtc-xp-total">${task.totalXP || 0} XP</span>
+        <button class="mtc-add-btn" id="mtc-addbtn-${task.id}" title="Adicionar subtarefa">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+        <i class="fa-solid fa-chevron-down mtc-chevron" id="mtc-chev-${task.id}"></i>
       </div>
-      <span class="mtc-xp-total">${task.totalXP || 0} XP</span>
-      <button class="mtc-add-btn" id="mtc-addbtn-${task.id}" title="Adicionar subtarefa">
-        <i class="fa-solid fa-plus"></i>
-      </button>
-      <i class="fa-solid fa-chevron-down mtc-chevron" id="mtc-chev-${task.id}"></i>
-    </div>
 
-    <div class="mtc-progress-wrap">
-      <div class="mtc-progress-track">
-        <div class="mtc-progress-fill" style="width:${pct}%"></div>
+      <div class="mtc-progress-wrap">
+        <div class="mtc-progress-track">
+          <div class="mtc-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="mtc-progress-label">${pct}% concluído</div>
       </div>
-      <div class="mtc-progress-label">${pct}% concluído</div>
-    </div>
 
-    ${task.notes ? `
-      <div style="padding:0 14px 10px 18px;">
-        <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin:0;
-                  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-          ${escHtml(task.notes)}
-        </p>
-      </div>` : ''}
+      ${task.notes ? `
+        <div style="padding:0 14px 10px 18px;">
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin:0;
+                    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+            ${escHtml(task.notes)}
+          </p>
+        </div>` : ''}
+    </div>
 
     <div class="mtc-subtasks" id="mtc-subs-${task.id}">
       <div class="mtc-subtask-list" id="mtc-sublist-${task.id}"></div>
@@ -1667,8 +1671,10 @@ function createMissionCard(task) {
   const subList = card.querySelector(`#mtc-sublist-${task.id}`);
   subtasks.forEach(st => subList.appendChild(createSubtaskItem(task.id, st)));
 
+  // Accordion: clique no header abre/fecha subtasks
   card.querySelector(`#mtc-header-${task.id}`).addEventListener('click', e => {
     if (e.target.closest('.mtc-add-btn')) return;
+    if (card._isSwiping) return; // ← não abre accordion ao soltar swipe
     const body = card.querySelector(`#mtc-subs-${task.id}`);
     const chev = card.querySelector(`#mtc-chev-${task.id}`);
     const open = body.classList.toggle('open');
@@ -1688,21 +1694,15 @@ function createMissionCard(task) {
 }
 
 function setupMissionSwipe(card, taskId) {
-  // Elementos que se movem visualmente durante o swipe
-  const movables = [
-    card.querySelector('.mtc-header'),
-    card.querySelector('.mtc-progress-wrap'),
-  ].filter(Boolean);
+  // Único elemento que se move — o layer que envolve header + progress
+  const layer = card.querySelector('.mtc-swipe-layer');
+  if (!layer) return;
 
   let sx = 0, sy = 0, dx = 0, active = false, dirLocked = null;
 
-  console.log('Swipe configurado para missão', taskId);
-
   function resetVisual() {
-    movables.forEach(el => {
-      el.style.transform = '';
-      el.style.opacity   = '';
-    });
+    layer.style.transform = '';
+    layer.style.opacity   = '';
     card.style.background = '';
     card.style.removeProperty('--swipe-hint-color');
     active          = false;
@@ -1711,9 +1711,7 @@ function setupMissionSwipe(card, taskId) {
   }
 
   card.addEventListener('touchstart', e => {
-    // Ignora toques que começaram dentro da área de subtasks
     if (e.target.closest('.mtc-subtasks')) return;
-    // Ignora botão "+"
     if (e.target.closest('.mtc-add-btn'))  return;
 
     sx = e.touches[0].clientX;
@@ -1727,7 +1725,6 @@ function setupMissionSwipe(card, taskId) {
 
   card.addEventListener('touchmove', e => {
     if (!active) return;
-    // Subtask ou botão iniciaram o toque — ignora
     if (e.target.closest('.mtc-subtasks')) { resetVisual(); return; }
 
     const curX = e.touches[0].clientX;
@@ -1735,27 +1732,23 @@ function setupMissionSwipe(card, taskId) {
     dx         = curX - sx;
     const dy   = curY - sy;
 
-    if (!dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+    if (!dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6))
       dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
-    }
 
     if (dirLocked === 'v') { resetVisual(); return; }
     if (dirLocked !== 'h') return;
 
-    // A partir daqui é swipe horizontal confirmado
     if (Math.abs(dx) > SWIPE_THRESHOLD) card._isSwiping = true;
 
     const clamped = Math.max(-120, Math.min(120, dx));
-
-    movables.forEach(el => {
-      el.style.transform = `translateX(${clamped}px)`;
-    });
+    layer.style.transform = `translateX(${clamped}px)`;
 
     if (dx < 0) {
       const ratio = Math.min(Math.abs(dx) / SWIPE_ACTION_LEFT, 1);
-      movables.forEach(el => { el.style.opacity = String(1 - ratio * 0.45); });
+      layer.style.opacity = String(1 - ratio * 0.45);
       card.style.setProperty('--swipe-hint-color', `rgba(239,71,111,${ratio * 0.18})`);
     } else {
+      layer.style.opacity = '';
       const ratio = Math.min(dx / SWIPE_ACTION_RIGHT, 1);
       card.style.setProperty('--swipe-hint-color', `rgba(124,111,205,${ratio * 0.18})`);
     }
@@ -1765,20 +1758,16 @@ function setupMissionSwipe(card, taskId) {
 
   card.addEventListener('touchend', () => {
     if (!active) return;
-
     const wasSwipe = card._isSwiping;
     const lastDx   = dx;
     resetVisual();
-
     if (!wasSwipe) return;
-
     if      (lastDx < -SWIPE_ACTION_LEFT)  openDeleteModal(taskId);
     else if (lastDx >  SWIPE_ACTION_RIGHT) openTaskContextMenu(taskId, card);
   });
 
   card.addEventListener('touchcancel', resetVisual);
 }
-
 
 function openAddSubtaskSheet(missionTaskId) {
   _addSubtaskTargetId = missionTaskId;
