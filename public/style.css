@@ -602,16 +602,19 @@ textarea {
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.5;
-  margin-top: 4px;
+  margin-top: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 0;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  transition: -webkit-line-clamp 0.2s;
+  max-height: 0;
+  transition: max-height 0.22s ease, margin-top 0.22s ease;
 }
 
 .task-notes.expanded {
   -webkit-line-clamp: unset;
+  max-height: 200px;
+  margin-top: 4px;
 }
 
 @keyframes cat-chip-fill {
