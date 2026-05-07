@@ -1069,30 +1069,31 @@ function createTaskCard(task) {
     metaExtra += `<span class="task-assigned-tag"><i class="fa-solid fa-building"></i>Atribuída por ${task.assignedBy}</span>`;
 
   card.innerHTML = `
-    <div class="task-card-inner">
-      <div class="task-check-wrap">
-        <div class="task-check-ring">
-          <div class="hold-ring"></div>
-          <i class="fa-solid fa-check" style="${task.status==='done'?'opacity:1':'opacity:0'}"></i>
-        </div>
+  <div class="task-card-inner">
+    <div class="task-check-wrap">
+      <div class="task-check-ring">
+        <div class="hold-ring"></div>
+        <i class="fa-solid fa-check" style="${task.status==='done'?'opacity:1':'opacity:0'}"></i>
       </div>
-      <div class="task-content">
-        <div class="task-title">${escHtml(task.title)}</div>
-        <div class="task-meta">
-          <span class="task-cat-tag" style="background:${cat.color}1a;color:${cat.color}">
-            <i class="${cat.icon}" style="font-size:10px;margin-right:3px;"></i>${cat.name}
-          </span>
-          <span class="task-imp-badge ${impClass}">${task.importance}</span>
-          ${metaExtra}
-        </div>
+    </div>
+    <div class="task-content">
+      <div class="task-title">${escHtml(task.title)}</div>
+      <div class="task-meta">
+        <span class="task-cat-tag" style="background:${cat.color}1a;color:${cat.color}">
+          <i class="${cat.icon}" style="font-size:10px;margin-right:3px;"></i>${cat.name}
+        </span>
+        <span class="task-imp-badge ${impClass}">${task.importance}</span>
+        ${metaExtra}
       </div>
-      <span class="task-xp">${xp} XP</span>
+      ${task.notes ? `<div class="task-notes">${escHtml(task.notes)}</div>` : ''}
     </div>
-    <div class="task-actions">
-      <button class="task-action-btn action-postpone" title="Adiar"><i class="fa-solid fa-clock-rotate-left"></i></button>
-      <button class="task-action-btn action-delete" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-    </div>
-  `;
+    <span class="task-xp">${xp} XP</span>
+  </div>
+  <div class="task-actions">
+    <button class="task-action-btn action-postpone" title="Adiar"><i class="fa-solid fa-clock-rotate-left"></i></button>
+    <button class="task-action-btn action-delete" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+  </div>
+`;
 
   if (task.status !== 'done') {
     setupHold(card, task.id);
@@ -1106,6 +1107,7 @@ function createTaskCard(task) {
   card.querySelector('.task-title')?.addEventListener('click', e => {
     e.stopPropagation();
     e.target.classList.toggle('expanded');
+    card.querySelector('.task-notes')?.classList.toggle('expanded');
   });
   return card;
 }
