@@ -1694,20 +1694,25 @@ function createMissionCard(task) {
 }
 
 function setupMissionSwipe(card, taskId) {
-  // Único elemento que se move — o layer que envolve header + progress
   const layer = card.querySelector('.mtc-swipe-layer');
   if (!layer) return;
 
   let sx = 0, sy = 0, dx = 0, active = false, dirLocked = null;
 
+  // só visual — não mexe em estado
   function resetVisual() {
     layer.style.transform = '';
     layer.style.opacity   = '';
     card.style.background = '';
     card.style.removeProperty('--swipe-hint-color');
-    active          = false;
+  }
+
+  // estado + visual (usado em end/cancel)
+  function resetAll() {
+    resetVisual();
+    active = false;
     card._isSwiping = false;
-    dx              = 0;
+    dx = 0;
   }
 
   card.addEventListener('touchstart', e => {
@@ -1720,30 +1725,30 @@ function setupMissionSwipe(card, taskId) {
     active          = true;
     dirLocked       = null;
     card._isSwiping = false;
-    resetVisual();
+    resetVisual();   // ← só limpa visual, não mexe em active
   }, { passive: true });
 
   card.addEventListener('touchmove', e => {
     if (!active) return;
-    if (e.target.closest('.mtc-subtasks')) { resetVisual(); return; }
-  
+    if (e.target.closest('.mtc-subtasks')) { resetAll(); return; }
+
     const curX = e.touches[0].clientX;
     const curY = e.touches[0].clientY;
-    dx         = curX - sx;
-    const dy   = curY - sy;
-  
+    dx = curX - sx;
+    const dy = curY - sy;
+
     if (!dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6))
       dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
-  
-    if (dirLocked === 'v') { resetVisual(); return; }
+
+    if (dirLocked === 'v') { resetAll(); return; }
     if (dirLocked !== 'h') return;
-  
-    e.preventDefault(); // agora pode, pois não é passive
+
+    e.preventDefault();
     if (Math.abs(dx) > SWIPE_THRESHOLD) card._isSwiping = true;
-  
+
     const clamped = Math.max(-120, Math.min(120, dx));
     layer.style.transform = `translateX(${clamped}px)`;
-  
+
     if (dx < 0) {
       const ratio = Math.min(Math.abs(dx) / SWIPE_ACTION_LEFT, 1);
       layer.style.opacity = String(1 - ratio * 0.45);
@@ -1753,21 +1758,20 @@ function setupMissionSwipe(card, taskId) {
       const ratio = Math.min(dx / SWIPE_ACTION_RIGHT, 1);
       card.style.setProperty('--swipe-hint-color', `rgba(124,111,205,${ratio * 0.18})`);
     }
-  
     card.style.background = 'var(--swipe-hint-color, transparent)';
-  }, { passive: false }); // ← mudou aqui
+  }, { passive: false });
 
   card.addEventListener('touchend', () => {
     if (!active) return;
     const wasSwipe = card._isSwiping;
     const lastDx   = dx;
-    resetVisual();
+    resetAll();
     if (!wasSwipe) return;
     if      (lastDx < -SWIPE_ACTION_LEFT)  openDeleteModal(taskId);
     else if (lastDx >  SWIPE_ACTION_RIGHT) openTaskContextMenu(taskId, card);
   });
 
-  card.addEventListener('touchcancel', resetVisual);
+  card.addEventListener('touchcancel', resetAll);
 }
 
 function openAddSubtaskSheet(missionTaskId) {
