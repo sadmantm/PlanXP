@@ -712,21 +712,27 @@ function impWeight(imp) {
 // Ordenação: atrasadas primeiro → data+hora → importância
 function sortTasks(tasks) {
   return [...tasks].sort((a, b) => {
+    // 1. Atrasadas primeiro
     const aOver = isOverdueByTime(a) ? 0 : 1;
     const bOver = isOverdueByTime(b) ? 0 : 1;
     if (aOver !== bOver) return aOver - bOver;
 
-    // Compara data
+    // 2. Com lembrete ativo antes das demais (mas depois das atrasadas)
+    const aRemind = isRemindToday(a) ? 0 : 1;
+    const bRemind = isRemindToday(b) ? 0 : 1;
+    if (aRemind !== bRemind) return aRemind - bRemind;
+
+    // 3. Compara data
     const dateA = a.dueDate || '9999-99-99';
     const dateB = b.dueDate || '9999-99-99';
     if (dateA !== dateB) return dateA.localeCompare(dateB);
 
-    // Mesma data: hora (sem hora vai pro fim)
+    // 4. Mesma data: hora (sem hora vai pro fim)
     const timeA = a.taskTime || '23:59';
     const timeB = b.taskTime || '23:59';
     if (timeA !== timeB) return timeA.localeCompare(timeB);
 
-    // Mesmo horário: importância
+    // 5. Mesmo horário: importância
     return impWeight(a.importance) - impWeight(b.importance);
   });
 }
@@ -935,17 +941,19 @@ function initPostponeBindings() {
 function renderToday() {
   const today = todayISO();
   renderSeasonalBanner('seasonal-banner-today');
+
   const todayTasks = sortTasks(
     state.tasks.filter(t => {
-      if (t.status === 'done') return false;          // ← garante exclusão imediata
-      return isToday(t) || isOverdueByTime(t);
+      if (t.status === 'done') return false;
+      return isToday(t) || isOverdueByTime(t) || isRemindToday(t);
     })
   );
-  
+
   const futureTasks = sortTasks(
     state.tasks.filter(t => {
-      if (t.status === 'done') return false;          // ← mesmo critério
-      return t.dueDate && t.dueDate > today;
+      if (t.status === 'done') return false;
+      if (!t.dueDate) return false;
+      return t.dueDate > today;
     })
   );
 
@@ -954,36 +962,46 @@ function renderToday() {
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
   const mins  = todayTasks.reduce((s, t) => s + (t.estimateMinutes || 0), 0);
 
-  document.getElementById('h-greeting').textContent  = greeting();
-  document.getElementById('h-name').textContent      = state.userName;
-  document.getElementById('h-avatar').textContent    = state.userName[0].toUpperCase();
+  document.getElementById('h-greeting').textContent   = greeting();
+  document.getElementById('h-name').textContent       = state.userName;
+  document.getElementById('h-avatar').textContent     = state.userName[0].toUpperCase();
   document.getElementById('streak-count').textContent = state.streak;
 
-  document.getElementById('hero-date').textContent    = friendlyDate();
+  document.getElementById('hero-date').textContent = friendlyDate();
   document.getElementById('hero-summary').textContent =
-    `${todayTasks.length} tarefa${todayTasks.length !== 1 ? 's' : ''} pendente`;
-  document.getElementById('hero-pct').textContent     = `${pct}%`;
-  document.getElementById('hero-fill').style.width    = `${pct}%`;
+    mins > 0
+      ? `${todayTasks.length} tarefa${todayTasks.length !== 1 ? 's' : ''} · ~${mins} min`
+      : `${todayTasks.length} tarefa${todayTasks.length !== 1 ? 's' : ''} pendente`;
+  document.getElementById('hero-pct').textContent  = `${pct}%`;
+  document.getElementById('hero-fill').style.width = `${pct}%`;
 
-  const nextTask = todayTasks[0]; // já ordenado: 1ª é a mais urgente
+  const nextTask = todayTasks[0];
   document.getElementById('hero-next-task').textContent =
     nextTask ? nextTask.title : 'Nenhuma tarefa pendente';
 
-  // ── seções: agora ordenação já veio do sortTasks ──
   const now = todayTasks.filter(t =>
     t.importance === 'Obrigatório' ||
     t.importance === 'Necessário'  ||
-    isOverdueByTime(t)              // ← atrasada sempre vai pra "Agora"
+    isOverdueByTime(t)             ||
+    isRemindToday(t)
   );
-  
-  const ideas = todayTasks.filter(t => t.importance === 'Ideia' && !isOverdueByTime(t));
-  
+
+  const laterIds = new Set(todayTasks.map(t => t.id));
+
   const later = [
     ...todayTasks.filter(t =>
-      t.importance === 'Padrão' && !isOverdueByTime(t)  // ← só Padrão não-atrasada
+      t.importance === 'Padrão' &&
+      !isOverdueByTime(t)       &&
+      !isRemindToday(t)
     ),
-    ...futureTasks,
+    ...futureTasks.filter(t => !laterIds.has(t.id)),
   ];
+
+  const ideas = todayTasks.filter(t =>
+    t.importance === 'Ideia' &&
+    !isOverdueByTime(t)      &&
+    !isRemindToday(t)
+  );
 
   renderTaskList('list-now',   now,   'empty-now');
   renderTaskList('list-later', later, 'empty-later');
@@ -992,7 +1010,14 @@ function renderToday() {
   const hint = document.getElementById('gesture-hint');
   if (!state.gestureHintSeen && todayTasks.length > 0) hint?.classList.remove('hidden');
   else hint?.classList.add('hidden');
+
   window.initSectionCollapseBindings?.();
+}
+
+function isRemindToday(task) {
+  if (!task.remindDate) return false;
+  if (task.status === 'done') return false;  // ← proteção extra
+  return task.remindDate <= todayISO();
 }
 
 function greeting() {
@@ -1134,12 +1159,12 @@ function setupHold(card, id) {
   
     t0 = Date.now();
   
-    // Só começa o ring após 150ms (evita flicker em taps rápidos)
     holdTimer = setTimeout(() => {
       cancelAnimationFrame(raf);
       if (card._isSwiping) return;
-      if (isDone()) openReactivate(id);
-      else          completeTask(id);
+      const done = isDone();      // lê uma vez só
+      if (done) openReactivate(id);
+      else      completeTask(id);
     }, HOLD_MS);
   
     const ringColor = isDone() ? '#EF476F' : 'var(--accent-teal)';
@@ -1264,6 +1289,15 @@ function setupSwipe(card, id) {
     card._isSwiping = false;
     resetVisual();
   });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      document.querySelectorAll('.task-card').forEach(card => {
+        const inner = card.querySelector('.task-card-inner');
+        if (inner) inner.style.transform = '';
+        card._isSwiping = false;
+      });
+    }
+  });
 }
 
 function openReactivate(id) {
@@ -1351,6 +1385,13 @@ function captureSnapshot() {
 
   document.getElementById('delete-modal-confirm').addEventListener('click', () => {
     if (_deleteTargetId) {
+      const task = state.tasks.find(t => t.id === _deleteTargetId);
+      if (task?.empresaId) {
+        showSnackbar('Tarefas atribuídas pela empresa não podem ser excluídas.');
+        closeSheet('delete-modal');
+        _deleteTargetId = null;
+        return;
+      }
       deleteTask(_deleteTargetId);
       _deleteTargetId = null;
     }
@@ -3576,7 +3617,7 @@ function openEditTask(id) {
 
   document.getElementById('task-title-input').value = task.title;
   document.getElementById('task-due-date').value    = task.dueDate   || todayISO();
-  document.getElementById('task-time').value = task.taskTime || nowTimeStr();
+  document.getElementById('task-time').value = task.taskTime || '';
   document.getElementById('task-repeat').value      = task.repeat    || 'none';
   document.getElementById('task-energy').value      = task.energy    || 'medium';
   document.getElementById('task-notes').value       = task.notes     || '';
@@ -3623,7 +3664,6 @@ function saveTask() {
   const imp      = parsed.importance || state._newTaskImp || 'Padrão';
   const dueDate  = document.getElementById('task-due-date').value || todayISO();
 
-  // ── Hora: lê o campo; se vazio salva null (não força hora atual) ──
   const taskTimeRaw = document.getElementById('task-time').value;
   const taskTime    = taskTimeRaw && taskTimeRaw.trim() !== '' ? taskTimeRaw.trim() : null;
 
@@ -3631,28 +3671,24 @@ function saveTask() {
   const energy = document.getElementById('task-energy').value;
   const notes  = document.getElementById('task-notes').value.trim();
 
-  // ── Lembrete antecipado ──
   const remindBefore     = _remindVal === 'none' ? null : _remindVal;
   const remindBeforeDays = _remindVal === 'custom' ? (_remindCustom || 1) : null;
   const remindDate       = calcRemindDate(dueDate, remindBefore, remindBeforeDays);
 
-  // ── Modo insistente ──
   const insistent    = _insistentOn;
   const insistentMin = insistent ? (_insistentMin || 5) : null;
-
-  // ── Tipo: missões são salvas como 'task' e convertidas logo abaixo ──
-  const isMission = _newTaskType === 'mission';
+  const isMission    = _newTaskType === 'mission';
 
   const task = {
     id:              _editTaskId || uid(),
-    type:            'task',          // sempre 'task' aqui; convertToMission muda depois
+    type:            'task',
     title:           parsed.title || rawTitle,
     notes,
     catId,
     importance:      imp,
     dueDate,
-    taskTime,                         // ← campo correto (era estimateMinutes: taskTime)
-    estimateMinutes: null,            // preenchido pela expansão da missão, não pelo form
+    taskTime,
+    estimateMinutes: null,
     repeat,
     energy,
     status:          'todo',
@@ -3669,7 +3705,20 @@ function saveTask() {
   if (_editTaskId) {
     clearInsistent(_editTaskId);
     const idx = state.tasks.findIndex(t => t.id === _editTaskId);
-    if (idx > -1) state.tasks[idx] = { ...state.tasks[idx], ...task };
+    if (idx > -1) {
+      const existing = state.tasks[idx];
+      state.tasks[idx] = {
+        ...existing,
+        ...task,
+        xpEarned:      existing.xpEarned,
+        createdAt:     existing.createdAt,
+        lastCompleted: existing.lastCompleted,
+        status:        existing.status,
+      };
+    }
+
+    // ── Cancela alarme antigo ANTES de reagendar ──
+    NativeBridge.cancelAlarm(_editTaskId);
   } else {
     state.tasks.unshift(task);
     addTimelineItem('fa-solid fa-circle-plus', `Tarefa: ${task.title}`);
@@ -3678,21 +3727,20 @@ function saveTask() {
   if (insistent) scheduleInsistent(task);
 
   save();
-  // ── Bridge: agenda alarme se tarefa tem horário definido ──
+
+  // ── Agenda alarme nativo (após cancelar o antigo, se edição) ──
   if (taskTime) {
     const [h, m] = taskTime.split(':').map(Number);
-    const dt = new Date(`${dueDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+    const dt = new Date(
+      `${dueDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`
+    );
     if (dt.getTime() > Date.now()) {
       NativeBridge.scheduleAlarm(task.id, task.title, dt.getTime(), repeat);
     }
   }
 
-  // ── Bridge: se foi edição, cancela alarme antigo antes de reagendar ──
-  if (_editTaskId) NativeBridge.cancelAlarm(_editTaskId);
-
   closeSheet('add-task-sheet');
 
-  // ── Missão: converte APÓS salvar (task já está no state como 'task') ──
   if (isMission && !_editTaskId) {
     convertToMission(task.id);
     return;
