@@ -454,32 +454,30 @@ textarea {
 .task-card-inner * { pointer-events: none; }
 .task-action-btn   { pointer-events: all; }
 
-/* ── Ring: empilha ícone e check ── */
-.task-check-ring {
-  position: relative; /* já existia, confirmar */
+/* ── Ícone de tipo no ring ── */
+.task-icon {
+  font-size: 13px;
+  position: relative;
+  z-index: 1;
+  /* sem transition aqui: o setupHold gerencia dinamicamente */
 }
-.task-icon,
 .task-check-done {
   position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
   font-size: 13px;
-  line-height: 1;
-  pointer-events: none;
-}
-.task-icon {
-  z-index: 1;
-  transition: opacity 0.2s, transform 0.2s;
-  /* cor definida pelos seletores data-imp abaixo */
-}
-.task-check-done {
-  z-index: 2;
   opacity: 0;
   color: var(--accent-teal);
+  z-index: 2;
   transition: opacity 0.25s ease;
 }
 
-/* Estado completo */
+/* Cores dos ícones por importância */
+.task-card[data-imp="Obrigatório"] .task-icon { color: #EF476F; }
+.task-card[data-imp="Necessário"]  .task-icon { color: #FFD166; }
+.task-card[data-imp="Padrão"]      .task-icon { color: var(--accent); }
+.task-card[data-imp="Ideia"]       .task-icon { color: #FFD166; }
+.task-card.overdue                 .task-icon { color: #EF476F; }
+
+/* Estado completo: ícone some, check aparece */
 .task-card.completed .task-icon       { opacity: 0; }
 .task-card.completed .task-check-done { opacity: 1; }
 

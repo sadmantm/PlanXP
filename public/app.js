@@ -1068,6 +1068,7 @@ function renderTaskList(listId, tasks, emptyId, isIdeas = false) {
     );
   });
 }
+
 function createTaskCard(task) {
   const cat      = getCatSafe(task.catId);
   const impClass = { Obrigatório:'imp-mandatory', Necessário:'imp-necessary', Padrão:'imp-standard', Ideia:'imp-idea' }[task.importance] || 'imp-standard';
@@ -1208,9 +1209,8 @@ function setupHold(card, id) {
     if (e.target.closest('.task-action-btn')) return;
     if (card._isSwiping) return;
 
-    t0           = Date.now();
-    holding      = false;
-    card._didHold = false;
+    t0      = Date.now();
+    holding = false;
     const col = getRingColor();
 
     holdTimer = setTimeout(() => {
@@ -1239,8 +1239,7 @@ function setupHold(card, id) {
 
       if (!holding && elapsed > warmup) {
         holding = true;
-        card._didHold = true;
-        if (iconEl) iconEl.style.transition = 'none';
+        if (iconEl) iconEl.style.transition = 'none'; // sem easing durante o hold
       }
 
       ring.style.background = `conic-gradient(${col} ${deg}deg, transparent ${deg}deg)`;
@@ -1263,11 +1262,10 @@ function setupHold(card, id) {
 
     if (e?.target?.closest('.task-action-btn')) return;
 
-    // Restaura o ícone se não completou
+    // Sempre restaura o ícone se não completou
     resetIconAnim();
 
-    // Só expande se foi um tap limpo (sem hold iniciado)
-    if (!card._didHold && elapsed < 200 && !card._isSwiping) {
+    if (elapsed < 200 && !card._isSwiping) {
       const now = Date.now();
       if (now - _lastTap < 300) return;
       _lastTap = now;
