@@ -454,6 +454,48 @@ textarea {
 .task-card-inner * { pointer-events: none; }
 .task-action-btn   { pointer-events: all; }
 
+/* ── Ícone dentro do ring ── */
+.task-hold-icon {
+  font-size: 13px;
+  color: rgba(255,255,255,0.2);
+  transition: color 0.2s, transform 0.2s, opacity 0.2s;
+  position: relative;
+  z-index: 1;
+}
+
+/* Tarefa concluída: mostra check verde */
+.task-card.completed .task-hold-icon {
+  color: var(--accent-teal);
+  opacity: 1;
+}
+
+/* Por importância: cor do ícone em idle */
+.task-card[data-imp="Obrigatório"] .task-hold-icon { color: rgba(239,71,111,0.4); }
+.task-card[data-imp="Necessário"]  .task-hold-icon { color: rgba(255,209,102,0.4); }
+.task-card[data-imp="Padrão"]      .task-hold-icon { color: rgba(124,111,205,0.4); }
+.task-card[data-imp="Ideia"]       .task-hold-icon { color: rgba(143,143,168,0.3); }
+.task-card.overdue                 .task-hold-icon { color: rgba(239,71,111,0.5); }
+
+/* ── Estado: holding ── */
+.task-hold-icon[data-state="holding"] {
+  animation: hold-icon-pulse 0.5s ease-in-out infinite alternate;
+}
+
+/* ── Estado: completing ── */
+.task-hold-icon[data-state="completing"] {
+  animation: hold-icon-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+@keyframes hold-icon-pulse {
+  0%   { transform: scale(1);    opacity: 0.6; }
+  100% { transform: scale(1.35); opacity: 1;   }
+}
+
+@keyframes hold-icon-pop {
+  0%   { transform: scale(1.3); opacity: 1; }
+  50%  { transform: scale(0.7); opacity: 0.6; }
+  100% { transform: scale(1);   opacity: 1; color: var(--accent-teal); }
+}
 
 /* ── EMPRESA TAREFA CARDS ────────────────────────────── */
 .tarefa-status-dot {

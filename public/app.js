@@ -1065,12 +1065,16 @@ function createTaskCard(task) {
   const cat = getCatSafe(task.catId);
   const impClass = { Obrigatório:'imp-mandatory', Necessário:'imp-necessary', Padrão:'imp-standard', Ideia:'imp-idea' }[task.importance] || 'imp-standard';
   const xp = computeXP(task.importance);
-  const overdue = isOverdueByTime(task); // ← corrigido
+  const overdue = isOverdueByTime(task);
+  const isDone  = task.status === 'done';
 
   const card = document.createElement('div');
-  card.className = `task-card${task.status==='done'?' completed':''}${overdue?' overdue':''}`;
+  card.className = `task-card${isDone?' completed':''}${overdue?' overdue':''}`;
   card.dataset.id  = task.id;
-  card.dataset.imp = task.importance; // ← adicionado
+  card.dataset.imp = task.importance;
+
+  // ── Ícone inicial do hold ──
+  const holdIcon = isDone ? 'fa-solid fa-check' : 'fa-solid fa-bolt';
 
   let metaExtra = '';
   if (task.estimateMinutes) metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimateMinutes}</span>`;
@@ -1086,9 +1090,9 @@ function createTaskCard(task) {
     metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-calendar"></i>${formatDate(task.dueDate)}</span>`;
   }
 
-  if (task.remindDate && task.status !== 'done')
+  if (task.remindDate && !isDone)
     metaExtra += `<span class="task-remind-tag"><i class="fa-solid fa-bell"></i>${formatDate(task.remindDate)}</span>`;
-  if (task.insistent && task.insistentMin && task.status !== 'done')
+  if (task.insistent && task.insistentMin && !isDone)
     metaExtra += `<span class="task-insistent-tag"><i class="fa-solid fa-bell-concierge"></i>${task.insistentMin}min</span>`;
   if (task.empresaId && task.assignedBy)
     metaExtra += `<span class="task-assigned-tag"><i class="fa-solid fa-building"></i>Atribuída por ${task.assignedBy}</span>`;
@@ -1098,7 +1102,7 @@ function createTaskCard(task) {
     <div class="task-check-wrap">
       <div class="task-check-ring">
         <div class="hold-ring"></div>
-        <i class="fa-solid fa-check" style="${task.status==='done'?'opacity:1':'opacity:0'}"></i>
+        <i class="${holdIcon} task-hold-icon" data-state="idle"></i>
       </div>
     </div>
     <div class="task-content">
@@ -1120,15 +1124,12 @@ function createTaskCard(task) {
   </div>
 `;
 
-  if (task.status !== 'done') {
-    setupHold(card, task.id);
-    setupSwipe(card, task.id);
-  } else {
-    setupHold(card, task.id);
-  }
+  // setupHold agora funciona para ambos os estados
+  setupHold(card, task.id);
+  if (!isDone) setupSwipe(card, task.id);
 
   card.querySelector('.action-postpone')?.addEventListener('click', e => { e.stopPropagation(); openPostpone(task.id); });
-  card.querySelector('.action-delete')?.addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); });
+  card.querySelector('.action-delete')?.addEventListener('click',   e => { e.stopPropagation(); deleteTask(task.id); });
   return card;
 }
 
@@ -1145,34 +1146,54 @@ function getCatSafe(catId) {
 
 //#region Interações de Tarefa (Gestos)
 function setupHold(card, id) {
-  const ring = card.querySelector('.hold-ring');
+  const ring    = card.querySelector('.hold-ring');
+  const icon    = card.querySelector('.task-hold-icon');  // ← novo
   let holdTimer = null, raf = null, t0 = 0;
-  
 
   function isDone() {
     return state.tasks.find(t => t.id === id)?.status === 'done';
   }
 
+  // Troca classe e ícone FA conforme estado
+  function setIconState(state) {
+    if (!icon) return;
+    icon.dataset.state = state;
+    icon.className = 'task-hold-icon ' + {
+      idle:       isDone() ? 'fa-solid fa-check'   : 'fa-solid fa-bolt',
+      holding:    isDone() ? 'fa-solid fa-rotate-left' : 'fa-solid fa-bolt-lightning',
+      completing: isDone() ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check',
+    }[state];
+  }
+
   function start(e) {
     if (e.target.closest('.task-action-btn')) return;
     if (card._isSwiping) return;
-  
+
     t0 = Date.now();
-  
+    setIconState('idle'); // garante reset visual
+
     holdTimer = setTimeout(() => {
       cancelAnimationFrame(raf);
       if (card._isSwiping) return;
-      const done = isDone();      // lê uma vez só
-      if (done) openReactivate(id);
-      else      completeTask(id);
+      setIconState('completing');
+      setTimeout(() => {
+        if (isDone()) openReactivate(id);
+        else          completeTask(id);
+      }, 180); // pequeno delay para a animação de pop terminar
     }, HOLD_MS);
-  
+
     const ringColor = isDone() ? '#EF476F' : 'var(--accent-teal)';
-  
+
     function anim() {
       if (card._isSwiping) { cancel(); return; }
       const elapsed = Date.now() - t0;
-      if (elapsed < 150) { raf = requestAnimationFrame(anim); return; } // aguarda antes de pintar
+      if (elapsed < 150) { raf = requestAnimationFrame(anim); return; }
+
+      // Ativa o pulse do ícone a partir de 150ms
+      if (elapsed >= 150 && icon?.dataset.state === 'idle') {
+        setIconState('holding');
+      }
+
       const pct = Math.min((elapsed - 150) / (HOLD_MS - 150), 1) * 360;
       if (ring) ring.style.background =
         `conic-gradient(${ringColor} ${pct}deg, transparent ${pct}deg)`;
@@ -1188,10 +1209,10 @@ function setupHold(card, id) {
     clearTimeout(holdTimer);
     cancelAnimationFrame(raf);
     if (ring) ring.style.background = '';
-  
-    // Ignora se veio de botões de ação
+    setIconState('idle');  // ← reseta ícone ao cancelar
+
     if (e?.target?.closest('.task-action-btn')) return;
-  
+
     if (elapsed < 200 && !card._isSwiping) {
       const now = Date.now();
       if (now - _lastTap < 300) return;
@@ -1203,11 +1224,15 @@ function setupHold(card, id) {
     }
   }
 
+  // Inicializa o ícone no estado correto ao montar o card
+  setIconState('idle');
+
   card.addEventListener('mousedown',  start);
   card.addEventListener('touchstart', start, { passive: true });
   ['mouseup', 'mouseleave', 'touchend', 'touchcancel']
-  .forEach(ev => card.addEventListener(ev, cancel));
+    .forEach(ev => card.addEventListener(ev, cancel));
 }
+
 
 function setupSwipe(card, id) {
   const inner = card.querySelector('.task-card-inner');
