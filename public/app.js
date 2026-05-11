@@ -71,6 +71,14 @@ const CAT_FA_ICONS = [
   { icon: 'fa-solid fa-flask',            label: 'Pesquisa'    },
 ];
 
+const IMPORTANCE_ICON = {
+  'Obrigatório': 'fa-solid fa-bolt',
+  'Necessário':  'fa-solid fa-star',
+  'Padrão':      'fa-regular fa-circle-check',
+  'Ideia':       'fa-regular fa-lightbulb',
+};
+const OVERDUE_ICON = 'fa-solid fa-triangle-exclamation';
+
 let state = defaultState();
 let _reactivateTargetId = null;
 let undoStack = null;
@@ -1062,23 +1070,24 @@ function renderTaskList(listId, tasks, emptyId, isIdeas = false) {
 }
 
 function createTaskCard(task) {
-  const cat = getCatSafe(task.catId);
+  const cat      = getCatSafe(task.catId);
   const impClass = { Obrigatório:'imp-mandatory', Necessário:'imp-necessary', Padrão:'imp-standard', Ideia:'imp-idea' }[task.importance] || 'imp-standard';
-  const xp = computeXP(task.importance);
-  const overdue = isOverdueByTime(task);
-  const isDone  = task.status === 'done';
+  const xp       = computeXP(task.importance);
+  const overdue  = isOverdueByTime(task);
+  const taskIcon = overdue
+    ? OVERDUE_ICON
+    : (IMPORTANCE_ICON[task.importance] || 'fa-regular fa-circle-check');
 
   const card = document.createElement('div');
-  card.className = `task-card${isDone?' completed':''}${overdue?' overdue':''}`;
+  card.className  = `task-card${task.status === 'done' ? ' completed' : ''}${overdue ? ' overdue' : ''}`;
   card.dataset.id  = task.id;
   card.dataset.imp = task.importance;
 
-  // ── Ícone inicial do hold ──
-  const holdIcon = isDone ? 'fa-solid fa-check' : 'fa-solid fa-bolt';
-
   let metaExtra = '';
-  if (task.estimateMinutes) metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimateMinutes}</span>`;
-  if (task.repeat && task.repeat !== 'none') metaExtra += `<span class="task-meta-extra"><i class="fa-solid fa-rotate"></i></span>`;
+  if (task.estimateMinutes)
+    metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-clock"></i>${task.estimateMinutes}</span>`;
+  if (task.repeat && task.repeat !== 'none')
+    metaExtra += `<span class="task-meta-extra"><i class="fa-solid fa-rotate"></i></span>`;
 
   if (overdue) {
     const sameDay = task.dueDate === todayISO();
@@ -1090,9 +1099,9 @@ function createTaskCard(task) {
     metaExtra += `<span class="task-meta-extra"><i class="fa-regular fa-calendar"></i>${formatDate(task.dueDate)}</span>`;
   }
 
-  if (task.remindDate && !isDone)
+  if (task.remindDate && task.status !== 'done')
     metaExtra += `<span class="task-remind-tag"><i class="fa-solid fa-bell"></i>${formatDate(task.remindDate)}</span>`;
-  if (task.insistent && task.insistentMin && !isDone)
+  if (task.insistent && task.insistentMin && task.status !== 'done')
     metaExtra += `<span class="task-insistent-tag"><i class="fa-solid fa-bell-concierge"></i>${task.insistentMin}min</span>`;
   if (task.empresaId && task.assignedBy)
     metaExtra += `<span class="task-assigned-tag"><i class="fa-solid fa-building"></i>Atribuída por ${task.assignedBy}</span>`;
@@ -1102,7 +1111,8 @@ function createTaskCard(task) {
     <div class="task-check-wrap">
       <div class="task-check-ring">
         <div class="hold-ring"></div>
-        <i class="${holdIcon} task-hold-icon" data-state="idle"></i>
+        <i class="task-icon ${taskIcon}"></i>
+        <i class="fa-solid fa-check task-check-done"></i>
       </div>
     </div>
     <div class="task-content">
@@ -1120,18 +1130,21 @@ function createTaskCard(task) {
   </div>
   <div class="task-actions">
     <button class="task-action-btn action-postpone" title="Adiar"><i class="fa-solid fa-clock-rotate-left"></i></button>
-    <button class="task-action-btn action-delete" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-  </div>
-`;
+    <button class="task-action-btn action-delete"   title="Excluir"><i class="fa-solid fa-trash"></i></button>
+  </div>`;
 
-  // setupHold agora funciona para ambos os estados
-  setupHold(card, task.id);
-  if (!isDone) setupSwipe(card, task.id);
+  if (task.status !== 'done') {
+    setupHold(card, task.id);
+    setupSwipe(card, task.id);
+  } else {
+    setupHold(card, task.id);
+  }
 
   card.querySelector('.action-postpone')?.addEventListener('click', e => { e.stopPropagation(); openPostpone(task.id); });
   card.querySelector('.action-delete')?.addEventListener('click',   e => { e.stopPropagation(); deleteTask(task.id); });
   return card;
 }
+
 
 function getCatSafe(catId) {
   const cat = state.categories.find(c => c.id === catId);
@@ -1147,85 +1160,119 @@ function getCatSafe(catId) {
 //#region Interações de Tarefa (Gestos)
 function setupHold(card, id) {
   const ring    = card.querySelector('.hold-ring');
-  const icon    = card.querySelector('.task-hold-icon');  // ← novo
+  const iconEl  = card.querySelector('.task-icon');
   let holdTimer = null, raf = null, t0 = 0;
+  let holding   = false;
+
+  /* Cor do ring por importância (e estado) */
+  function getRingColor() {
+    if (isDone()) return '#EF476F';
+    const imp = card.dataset.imp;
+    if (imp === 'Obrigatório' || card.classList.contains('overdue')) return '#EF476F';
+    if (imp === 'Necessário'  || imp === 'Ideia')                    return '#FFD166';
+    return 'var(--accent-teal)';
+  }
 
   function isDone() {
     return state.tasks.find(t => t.id === id)?.status === 'done';
   }
 
-  // Troca classe e ícone FA conforme estado
-  function setIconState(state) {
-    if (!icon) return;
-    icon.dataset.state = state;
-    icon.className = 'task-hold-icon ' + {
-      idle:       isDone() ? 'fa-solid fa-check'   : 'fa-solid fa-bolt',
-      holding:    isDone() ? 'fa-solid fa-rotate-left' : 'fa-solid fa-bolt-lightning',
-      completing: isDone() ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check',
-    }[state];
+  /* ── Animação do ícone durante o hold ── */
+  function animateIconHolding(progress) {          // progress: 0 → 1
+    if (!iconEl) return;
+    // pulsa scale + rotaciona levemente conforme avança
+    const scale  = 1 + progress * 0.45;
+    const rotate = progress * 18;
+    const opac   = 1 - progress * 0.3;
+    iconEl.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+    iconEl.style.opacity   = opac;
   }
 
+  function resetIconAnim() {
+    if (!iconEl) return;
+    iconEl.style.transition = 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s';
+    iconEl.style.transform  = '';
+    iconEl.style.opacity    = '';
+    setTimeout(() => { iconEl.style.transition = ''; }, 380);
+  }
+
+  /* ── Pop de conclusão: ícone "voa" e desaparece ── */
+  function popCompleteAnim() {
+    if (!iconEl) return;
+    iconEl.style.transition = 'transform 0.3s ease-in, opacity 0.25s ease-in';
+    iconEl.style.transform  = 'scale(1.7) translateY(-4px)';
+    iconEl.style.opacity    = '0';
+  }
+
+  /* ── Início do hold ── */
   function start(e) {
     if (e.target.closest('.task-action-btn')) return;
     if (card._isSwiping) return;
 
-    t0 = Date.now();
-    setIconState('idle'); // garante reset visual
+    t0      = Date.now();
+    holding = false;
+    const col = getRingColor();
 
     holdTimer = setTimeout(() => {
       cancelAnimationFrame(raf);
       if (card._isSwiping) return;
-      setIconState('completing');
-      setTimeout(() => {
-        if (isDone()) openReactivate(id);
-        else          completeTask(id);
-      }, 180); // pequeno delay para a animação de pop terminar
-    }, HOLD_MS);
+      holding = false;
+      ring.style.background = '';
 
-    const ringColor = isDone() ? '#EF476F' : 'var(--accent-teal)';
+      if (isDone()) {
+        resetIconAnim();
+        openReactivate(id);
+      } else {
+        popCompleteAnim();
+        completeTask(id);
+      }
+    }, HOLD_MS);
 
     function anim() {
       if (card._isSwiping) { cancel(); return; }
-      const elapsed = Date.now() - t0;
-      if (elapsed < 150) { raf = requestAnimationFrame(anim); return; }
+      const elapsed  = Date.now() - t0;
+      const warmup   = 150;
+      if (elapsed < warmup) { raf = requestAnimationFrame(anim); return; }
 
-      // Ativa o pulse do ícone a partir de 150ms
-      if (elapsed >= 150 && icon?.dataset.state === 'idle') {
-        setIconState('holding');
+      const progress = Math.min((elapsed - warmup) / (HOLD_MS - warmup), 1); // 0 → 1
+      const deg      = progress * 360;
+
+      if (!holding && elapsed > warmup) {
+        holding = true;
+        if (iconEl) iconEl.style.transition = 'none'; // sem easing durante o hold
       }
 
-      const pct = Math.min((elapsed - 150) / (HOLD_MS - 150), 1) * 360;
-      if (ring) ring.style.background =
-        `conic-gradient(${ringColor} ${pct}deg, transparent ${pct}deg)`;
+      ring.style.background = `conic-gradient(${col} ${deg}deg, transparent ${deg}deg)`;
+      animateIconHolding(progress);
+
       if (elapsed < HOLD_MS) raf = requestAnimationFrame(anim);
     }
     raf = requestAnimationFrame(anim);
   }
 
+  /* ── Cancelamento / tap rápido ── */
   let _lastTap = 0;
 
   function cancel(e) {
     const elapsed = Date.now() - t0;
     clearTimeout(holdTimer);
     cancelAnimationFrame(raf);
-    if (ring) ring.style.background = '';
-    setIconState('idle');  // ← reseta ícone ao cancelar
+    ring.style.background = '';
+    holding = false;
 
     if (e?.target?.closest('.task-action-btn')) return;
+
+    // Sempre restaura o ícone se não completou
+    resetIconAnim();
 
     if (elapsed < 200 && !card._isSwiping) {
       const now = Date.now();
       if (now - _lastTap < 300) return;
       _lastTap = now;
-      const titleEl = card.querySelector('.task-title');
-      const notesEl = card.querySelector('.task-notes');
-      titleEl?.classList.toggle('expanded');
-      notesEl?.classList.toggle('expanded');
+      card.querySelector('.task-title')?.classList.toggle('expanded');
+      card.querySelector('.task-notes')?.classList.toggle('expanded');
     }
   }
-
-  // Inicializa o ícone no estado correto ao montar o card
-  setIconState('idle');
 
   card.addEventListener('mousedown',  start);
   card.addEventListener('touchstart', start, { passive: true });
