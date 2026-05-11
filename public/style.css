@@ -373,9 +373,20 @@ textarea {
   position: relative;
   transition: border-color 0.3s, background 0.3s;
 }
-.task-check-ring i { font-size: 13px; opacity: 0; color: var(--accent-teal); transition: opacity 0.2s; }
 .task-card.completed .task-check-ring { background: rgba(78,205,196,0.12); border-color: var(--accent-teal); }
-.task-card.completed .task-check-ring i { opacity: 1; }
+.task-check-ring i.task-check-done { 
+  font-size: 13px; 
+  opacity: 0; 
+  color: var(--accent-teal); 
+  transition: opacity 0.2s; 
+}
+.task-check-ring i.task-icon { 
+  font-size: 13px; 
+  opacity: 1; 
+  transition: opacity 0.2s, transform 0.2s; 
+}
+.task-card.completed .task-check-ring i.task-check-done { opacity: 1; }
+.task-card.completed .task-check-ring i.task-icon { opacity: 0; }
 
 /* Anel do hold colorido por importância em tarefas urgentes */
 .task-card[data-imp="Obrigatório"] .task-check-ring { border-color: rgba(239,71,111,0.3); }

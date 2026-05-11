@@ -1145,7 +1145,6 @@ function createTaskCard(task) {
   return card;
 }
 
-
 function getCatSafe(catId) {
   const cat = state.categories.find(c => c.id === catId);
   return {
@@ -1255,17 +1254,20 @@ function setupHold(card, id) {
 
   function cancel(e) {
     const elapsed = Date.now() - t0;
+    const wasHolding = holding; // capturado antes de resetar
     clearTimeout(holdTimer);
     cancelAnimationFrame(raf);
     ring.style.background = '';
     holding = false;
-
+  
     if (e?.target?.closest('.task-action-btn')) return;
-
+  
     // Sempre restaura o ícone se não completou
     resetIconAnim();
-
-    if (elapsed < 200 && !card._isSwiping) {
+  
+    // Só expande em tap genuíno: rápido E sem ter entrado em modo holding
+    const TAP_MAX = 150; // mesmo valor do warmup
+    if (elapsed < TAP_MAX && !wasHolding && !card._isSwiping) {
       const now = Date.now();
       if (now - _lastTap < 300) return;
       _lastTap = now;
