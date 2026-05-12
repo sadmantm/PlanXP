@@ -49,7 +49,6 @@ async function init() {
   initNotesCounter();
   initAddSubtaskSheet();
   await initEmpresa();
-  updateSidebarProfile();
   const lastOpen = localStorage.getItem('dxp2_lastopen');
   const today    = todayISO();
   if (lastOpen && lastOpen !== today) {
