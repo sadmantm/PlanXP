@@ -1,76 +1,204 @@
 /* ─────────────────────────────────────────────────────────
-   desktop-bridge.js  —  v2
-   Carregado DEPOIS de todos os outros scripts.
-   Não modifica nenhuma função existente no lugar,
-   apenas faz wraps pós-definição via window.addEventListener('load').
+   desktop-bridge.js  —  v3
+   Carregado DEPOIS de todos os outros scripts (último <script>).
+   Estratégia: wraps feitos no DOMContentLoaded (scripts já
+   parseados), populate feito APÓS launchApp terminar (async).
 ───────────────────────────────────────────────────────── */
-window.addEventListener('load', function desktopBridge() {
+(function () {
 
-  const IS_DESKTOP = window.innerWidth > 768;
+  const IS_DESKTOP = () => window.innerWidth > 768;
 
   /* ══════════════════════════════════════════════════════
-     1. CORRIGE launchApp — remove o .remove('hidden') do
-        bottom-nav que o JS original força toda vez
+     IDs reais do HTML desktop — mapeamento explícito
   ══════════════════════════════════════════════════════ */
-  const _origLaunchApp = window.launchApp;
-  window.launchApp = async function(primeiraintecao = false) {
-    await _origLaunchApp(primeiraintecao);
-
-    if (IS_DESKTOP) {
-      /* Desfaz o que launchApp fez no bottom-nav */
-      const nav = document.getElementById('bottom-nav');
-      if (nav) nav.style.display = 'none';
-
-      /* Desfaz o app.style.bottom injetado por switchTab dentro de launchApp */
-      const app = document.getElementById('app');
-      if (app) app.style.bottom = '';
-
-      /* Popula painel e sidebar logo após o app subir */
-      updateDesktopUI();
-    }
+  const IDS = {
+    // sidebar
+    sidebarAvatar:  'sidebar-avatar',
+    sidebarName:    'sidebar-profile-name',
+    sidebarLevel:   'sidebar-profile-level',
+    streakCount:    'streak-count',
+    xpFill:         'sidebar-xp-fill',
+    // painel today
+    tsXP:           'ts-xp',
+    tsDone:         'ts-done',
+    tsStreak:       'ts-streak',
+    tsLevel:        'ts-level',
+    missionsMini:   'today-missions-mini',
+    // nav
+    bottomNav:      'bottom-nav',
+    app:            'app',
+    fabAdd:         'fab-add',
   };
 
-  /* ══════════════════════════════════════════════════════
-     2. WRAP switchTab — limpa os side-effects mobile
-        e sincroniza a sidebar
-  ══════════════════════════════════════════════════════ */
-  const _origSwitchTab = window.switchTab;
-  window.switchTab = function(tab) {
-    _origSwitchTab(tab);
+  function el(id) { return document.getElementById(id); }
+  function setText(id, val) { const e = el(id); if (e) e.textContent = val; }
 
-    if (IS_DESKTOP) {
-      const app = document.getElementById('app');
-      const nav = document.getElementById('bottom-nav');
+  /* ══════════════════════════════════════════════════════
+     1. WRAPS — feitos assim que os scripts estão parseados
+        (DOMContentLoaded garante isso pois este arquivo é
+        o último <script> síncrono do body)
+  ══════════════════════════════════════════════════════ */
+  document.addEventListener('DOMContentLoaded', function () {
+
+    /* ── 1a. Wrap launchApp ────────────────────────────
+       Espera o original terminar (é async) e só então
+       limpa side-effects mobile + popula UI desktop.    */
+    const _origLaunch = window.launchApp;
+    window.launchApp = async function (primeiraintecao = false) {
+      await _origLaunch.call(this, primeiraintecao);
+      if (!IS_DESKTOP()) return;
+
+      /* Desfaz o bottom-nav que launchApp força visível */
+      const nav = el(IDS.bottomNav);
+      if (nav) { nav.classList.add('hidden'); nav.style.display = ''; }
+
+      /* Desfaz app.style.bottom injetado por switchTab */
+      const app = el(IDS.app);
       if (app) app.style.bottom = '';
-      if (nav) nav.style.display = 'none';
+
+      /* Popula tudo agora que state está pronto */
+      updateDesktopUI();
+    };
+
+    /* ── 1b. Wrap switchTab ────────────────────────────
+       Remove side-effects mobile pós-chamada.           */
+    const _origSwitch = window.switchTab;
+    window.switchTab = function (tab) {
+      _origSwitch.call(this, tab);
+      if (!IS_DESKTOP()) return;
+
+      const nav = el(IDS.bottomNav);
+      const app = el(IDS.app);
+      if (nav) { nav.classList.add('hidden'); nav.style.display = ''; }
+      if (app) app.style.bottom = '';
 
       syncSidebarActive(tab);
-
-      /* Atualiza painel lateral quando volta para Today */
       if (tab === 'today') updateDesktopUI();
-    }
-  };
+    };
 
-  /* ══════════════════════════════════════════════════════
-     3. WRAP renderToday — atualiza painel lateral
-  ══════════════════════════════════════════════════════ */
-  if (IS_DESKTOP) {
-    const _origRenderToday = window.renderToday;
-    if (typeof _origRenderToday === 'function') {
-      window.renderToday = function() {
-        _origRenderToday();
-        updateDesktopUI();
+    /* ── 1c. Wrap renderAll ────────────────────────────
+       Qualquer re-render (completar tarefa, salvar…)
+       mantém painel e sidebar sincronizados.            */
+    const _origRenderAll = window.renderAll;
+    if (typeof _origRenderAll === 'function') {
+      window.renderAll = function () {
+        _origRenderAll.call(this);
+        if (IS_DESKTOP()) updateDesktopUI();
       };
     }
-  }
+
+    /* ── 1d. Cliques na sidebar ────────────────────────*/
+    document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (typeof switchTab === 'function') switchTab(btn.dataset.tab);
+      });
+    });
+
+    /* ── 1e. FAB desktop — bloqueia hold, abre sheet ── */
+    const fab = el(IDS.fabAdd);
+    if (fab) {
+      /* Stoppa mousedown/touchstart antes do voice.js receber */
+      fab.addEventListener('mousedown',  e => e.stopPropagation(), true);
+      fab.addEventListener('touchstart', e => e.stopPropagation(),
+        { capture: true, passive: false });
+      fab.addEventListener('click', e => {
+        e.stopPropagation();
+        if (typeof openAddTask === 'function') openAddTask();
+      }, true);
+    }
+
+  }); /* fim DOMContentLoaded */
 
   /* ══════════════════════════════════════════════════════
-     4. SIDEBAR — cliques e estado ativo
+     2. POPULATE — lê state e escreve nos elementos reais
   ══════════════════════════════════════════════════════ */
-  document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
+  function updateDesktopUI() {
+    const s = window.state;
+    if (!s) return;
 
+    /* ── Sidebar ─────────────────────────────────────── */
+    const name = s.userName || '';
+    setText(IDS.sidebarName,  name);
+    setText(IDS.sidebarLevel, `Nível ${s.level ?? 1}`);
+    setText(IDS.streakCount,  s.streak ?? 0);
+
+    const av = el(IDS.sidebarAvatar);
+    if (av && name) av.textContent = name[0].toUpperCase();
+
+    /* XP progress bar */
+    const lvl    = s.level ?? 1;
+    const needed = typeof xpForLevel === 'function' ? xpForLevel(lvl)     : 1000;
+    const prev   = typeof xpForLevel === 'function' && lvl > 1
+                   ? xpForLevel(lvl - 1) : 0;
+    const range  = (needed - prev) || 1;
+    const pct    = Math.min(100, Math.round(((s.totalXP - prev) / range) * 100));
+    const fill   = el(IDS.xpFill);
+    if (fill) fill.style.width = pct + '%';
+
+    /* ── Stat cards (painel Today) ───────────────────── */
+    const today = typeof todayISO === 'function'
+      ? todayISO()
+      : new Date().toISOString().split('T')[0];
+
+    const todayDone = (s.tasks || []).filter(
+      t => t.status === 'done' && t.lastCompleted === today
+    ).length;
+
+    setText(IDS.tsXP,     s.todayXP  ?? 0);
+    setText(IDS.tsDone,   todayDone);
+    setText(IDS.tsStreak, s.streak   ?? 0);
+    setText(IDS.tsLevel,  s.level    ?? 1);
+
+    /* ── Mini missões ────────────────────────────────── */
+    renderMissionsMini(s);
+
+    /* ── Sincroniza sidebar active ───────────────────── */
+    syncSidebarActive(s.activeTab);
+  }
+
+  /* ── Missões mini no painel lateral ─────────────────── */
+  function renderMissionsMini(s) {
+    const container = el(IDS.missionsMini);
+    if (!container) return;
+
+    const missions = (s.missions || []).slice(0, 4);
+    if (!missions.length) {
+      container.innerHTML =
+        '<p style="font-size:12px;color:var(--text-muted);padding:4px 0 2px;">Nenhuma missão ativa.</p>';
+      return;
+    }
+
+    container.innerHTML = missions.map(m => {
+      const pct   = m.target > 0
+        ? Math.min(100, Math.round((m.progress / m.target) * 100)) : 0;
+      const color = m.done ? 'var(--accent-teal)' : 'var(--accent)';
+      const txtColor = m.done ? 'var(--accent-teal)' : 'var(--text-sec)';
+      const title = typeof escHtml === 'function' ? escHtml(m.title) : m.title;
+
+      return `
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span style="font-size:12px;font-weight:700;color:${txtColor};
+              flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${title}
+            </span>
+            <span style="font-size:10px;font-family:'Rajdhani',sans-serif;
+              font-weight:700;color:${color};flex-shrink:0;">
+              +${m.xp} XP
+            </span>
+          </div>
+          <div style="height:3px;background:var(--bg-primary);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${color};
+              border-radius:2px;transition:width .3s;"></div>
+          </div>
+          <div style="font-size:10px;margin-top:3px;color:${m.done ? 'var(--accent-teal)' : 'var(--text-muted)'};">
+            ${m.done ? '✓ Concluída' : `${m.progress}/${m.target}`}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Sidebar: marca botão ativo ──────────────────────── */
   function syncSidebarActive(activeTab) {
     const tab = activeTab ?? window.state?.activeTab;
     if (!tab) return;
@@ -79,118 +207,7 @@ window.addEventListener('load', function desktopBridge() {
     });
   }
 
-  /* ══════════════════════════════════════════════════════
-     5. FAB desktop — clique simples abre sheet direto
-        (o voice.js adiciona hold; no desktop ignoramos)
-  ══════════════════════════════════════════════════════ */
-  if (IS_DESKTOP) {
-    const fab = document.getElementById('fab-add');
-    if (fab) {
-      /* Capture=true: roda antes do handler de hold do voice.js */
-      fab.addEventListener('mousedown', e => e.stopPropagation(), true);
-      fab.addEventListener('touchstart', e => e.stopPropagation(), { capture: true, passive: false });
-      fab.addEventListener('click', e => {
-        e.stopPropagation();
-        if (typeof openAddTask === 'function') openAddTask();
-      }, true);
-    }
-  }
-
-  /* ══════════════════════════════════════════════════════
-     6. updateDesktopUI — popula sidebar + painel Today
-  ══════════════════════════════════════════════════════ */
-  function updateDesktopUI() {
-    if (!window.state) return;
-
-    /* ── Sidebar: avatar, nome, nível, streak, XP bar ── */
-    const name = state.userName || '';
-    setEl('sidebar-profile-name',  name);
-    setEl('sidebar-profile-level', `Nível ${state.level ?? 1}`);
-    setEl('streak-count', state.streak ?? 0);
-
-    const av = document.getElementById('sidebar-avatar');
-    if (av && name) av.textContent = name[0].toUpperCase();
-
-    const needed = typeof xpForLevel === 'function' ? xpForLevel(state.level ?? 1) : 1000;
-    const prev   = (state.level > 1 && typeof xpForLevel === 'function')
-      ? xpForLevel(state.level - 1) : 0;
-    const range  = needed - prev || 1;
-    const pct    = Math.min(100, Math.round(((state.totalXP - prev) / range) * 100));
-    const xpFill = document.getElementById('sidebar-xp-fill');
-    if (xpFill) xpFill.style.width = pct + '%';
-
-    /* ── Painel Today: 4 stat cards ── */
-    const today = typeof todayISO === 'function' ? todayISO() : new Date().toISOString().split('T')[0];
-    const todayDone = (state.tasks || []).filter(
-      t => t.status === 'done' && t.lastCompleted === today
-    ).length;
-
-    setEl('ts-xp',     state.todayXP      ?? 0);
-    setEl('ts-done',   todayDone);
-    setEl('ts-streak', state.streak        ?? 0);
-    setEl('ts-level',  state.level         ?? 1);
-
-    /* ── Painel Today: missões mini ── */
-    renderMissionsMini();
-
-    /* ── Sincroniza sidebar active ── */
-    syncSidebarActive();
-  }
-
-  /* ── Mini missões no painel lateral ── */
-  function renderMissionsMini() {
-    const el = document.getElementById('today-missions-mini');
-    if (!el || !window.state?.missions) return;
-
-    const missions = state.missions.slice(0, 4);
-    if (!missions.length) {
-      el.innerHTML = '<p style="font-size:12px;color:var(--text-muted);padding:4px 0 2px;">Nenhuma missão ativa.</p>';
-      return;
-    }
-
-    el.innerHTML = missions.map(m => {
-      const pct   = m.target > 0 ? Math.min(100, Math.round((m.progress / m.target) * 100)) : 0;
-      const color = m.done ? 'var(--accent-teal)' : 'var(--accent)';
-      const title = typeof escHtml === 'function' ? escHtml(m.title) : m.title;
-      return `
-        <div style="margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;">
-            <span style="font-size:12px;font-weight:700;color:${m.done ? 'var(--accent-teal)' : 'var(--text-sec)'};
-              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${title}</span>
-            <span style="font-size:10px;color:${color};font-family:'Rajdhani',sans-serif;
-              font-weight:700;flex-shrink:0;">+${m.xp} XP</span>
-          </div>
-          <div style="height:3px;background:var(--bg-primary);border-radius:2px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${color};
-              border-radius:2px;transition:width .3s;"></div>
-          </div>
-          ${m.done
-            ? '<div style="font-size:10px;color:var(--accent-teal);margin-top:3px;font-weight:700;">✓ Concluída</div>'
-            : `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">${m.progress}/${m.target}</div>`
-          }
-        </div>`;
-    }).join('');
-  }
-
-  /* ── Helper ── */
-  function setEl(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  }
-
-  /* ── Expõe para uso externo (ex: renderAll) ── */
+  /* Expõe para uso externo se necessário */
   window._desktopUpdateUI = updateDesktopUI;
 
-  /* ══════════════════════════════════════════════════════
-     7. Hook em renderAll (se existir) para manter painel
-        sincronizado em qualquer re-render
-  ══════════════════════════════════════════════════════ */
-  if (IS_DESKTOP && typeof window.renderAll === 'function') {
-    const _origRenderAll = window.renderAll;
-    window.renderAll = function() {
-      _origRenderAll();
-      updateDesktopUI();
-    };
-  }
-
-});
+})();
