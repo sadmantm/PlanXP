@@ -3500,16 +3500,20 @@ function closeSheet(id) {
 }
 
 window.addEventListener('popstate', (e) => {
-  // Marca como consumido por padrão; desmarca só se não houver nada para fechar
   window.__backConsumed = true;
 
-  // 1. Voice sheet (handler especial)
-  if (window._voiceSheetBackHandler?.()) return;
+  // 1. Voice sheet — só intercepta se ele estiver VISÍVEL (classe open ou visible)
+  const voiceSheet = document.getElementById('voice-sheet');
+  const voiceOpen  = voiceSheet?.classList.contains('open') ||
+                     voiceSheet?.classList.contains('visible');
+  if (voiceOpen) {
+    window._voiceSheetBackHandler?.();
+    return;
+  }
 
-  // 2. Fecha qualquer sheet visível
-  const visibleSheet = document.querySelector(
-    '.bottom-sheet:not(.hidden), .sheet:not(.hidden), .voice-sheet:not(.hidden)'
-  );
+  // 2. Fecha qualquer bottom-sheet visível
+  // CORREÇÃO: voice-sheet excluído aqui pois já tratado acima
+  const visibleSheet = document.querySelector('.bottom-sheet:not(.hidden)');
   if (visibleSheet) {
     closeSheet(visibleSheet.id);
     return;
@@ -3522,9 +3526,9 @@ window.addEventListener('popstate', (e) => {
     return;
   }
 
-  // 4. Nada consumiu — deixa o Android exibir o diálogo de saída
   window.__backConsumed = false;
 });
+
 
 // Estado inicial no histórico
 history.pushState(null, '');
