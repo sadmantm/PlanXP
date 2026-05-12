@@ -1233,3 +1233,11 @@ input[type=range] { flex: 1; accent-color: var(--accent); height: 4px; }
 
   .task-actions { display: flex; } /* always visible on mobile */
 }
+
+#fab-add { overflow: hidden; }
+
+  #fab-add .fab-hold-ring.active  { opacity: 1; }
+  #fab-add .fab-hold-glow.active  { opacity: 1; }
+  #fab-add.holding                { transform: scale(0.97); }
+
+  #fab-add.voice-mode             { background: var(--accent, #7c3aed); }

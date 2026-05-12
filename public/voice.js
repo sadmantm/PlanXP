@@ -16,7 +16,7 @@
   const stopBtn     = document.getElementById('voice-stop-btn');
   const cancelBtn   = document.getElementById('voice-cancel-btn');
   const holdRing   = fab.querySelector('.fab-hold-ring');
-const holdCircle = holdRing?.querySelector('circle');
+  const holdCircle = holdRing?.querySelector('circle, rect');
 const holdGlow   = fab.querySelector('.fab-hold-glow');
 const ring       = fab.querySelector('.fab-implode-ring');
 const CIRCUMFERENCE = 2 * Math.PI * 27; // ≈ 169.6
