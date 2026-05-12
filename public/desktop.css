@@ -2034,5 +2034,7 @@ input[type="range"]::-moz-range-thumb {
 /* ── ACHIEVEMENT TOAST ────────────────────────────── */
 #achievement-toast { pointer-events: none; }
 
+
+
 /* ── UTILITY ──────────────────────────────────────── */
 .hidden { display: none !important; }
