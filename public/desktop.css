@@ -896,6 +896,52 @@ input[type=range] { flex: 1; accent-color: var(--accent); height: 4px; }
 .streak-pill { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--radius-pill); background: rgba(255,209,102,.12); color: var(--accent-warn); font-size: 12px; font-weight: 700; }
 .streak-pill i { font-size: 12px; }
 
+/* ════════════════════════════════════════════════════════
+   DESKTOP OVERRIDES — neutraliza lógica mobile do switchTab
+════════════════════════════════════════════════════════ */
+
+/* switchTab faz app.style.bottom = 'calc(var(--nav-h)...)' ou '0px'
+   No desktop esse valor inline não deve ter efeito algum.
+   Sobrescrevemos com !important para garantir. */
+@media (min-width: 769px) {
+  #app {
+    bottom: 0 !important;   /* ignora o style.bottom injetado pelo JS */
+    top: 0 !important;
+  }
+
+  /* bottom-nav: JS faz classList.remove('hidden') em NAV_TABS.
+     No desktop ele nunca deve aparecer. */
+  #bottom-nav {
+    display: none !important;
+  }
+
+  /* Sidebar: o JS adiciona .active em .nav-btn[data-tab],
+     mas no desktop os botões são .sidebar-btn[data-tab].
+     O patch JS em Inicializacao.js cuida de propagar a classe;
+     aqui garantimos o visual correto mesmo sem o patch. */
+  .sidebar-btn.active {
+    background: rgba(124,111,205,.15) !important;
+    color: var(--accent) !important;
+  }
+  .sidebar-btn.active i { color: var(--accent) !important; }
+
+  /* FAB fixo no mobile vira botão inline no desktop —
+     o JS pode injetar position:fixed via classList ou style;
+     garantimos que o #fab-add dentro do painel fique normal */
+  .today-panel-card #fab-add {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    border-radius: var(--radius-btn) !important;
+    font-size: 14px !important;
+    box-shadow: none !important;
+  }
+  /* o ring e o glow do fab-hold ficam invisíveis no desktop */
+  .fab-hold-ring,
+  .fab-hold-glow,
+  .fab-implode-ring { display: none !important; }
+}
+
 /* BOTTOM NAV — hidden on desktop, shown on mobile */
 .bottom-nav { display: none; }
 
