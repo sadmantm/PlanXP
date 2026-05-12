@@ -837,6 +837,14 @@ input[type=range] { flex: 1; accent-color: var(--accent); height: 4px; }
 @keyframes bar-dance { from { height: 6px; } to { height: 26px; } }
 .voice-stop-btn   { width: 100%; padding: 13px; border-radius: var(--radius-btn); background: var(--accent); color: #fff; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .voice-cancel-btn { font-size: 13px; color: var(--text-muted); font-weight: 700; }
+.voice-sheet.open,
+.voice-sheet.visible { pointer-events: all; }
+
+.voice-sheet.open .voice-sheet-backdrop,
+.voice-sheet.visible .voice-sheet-backdrop { opacity: 1; }
+
+.voice-sheet.open .voice-sheet-panel,
+.voice-sheet.visible .voice-sheet-panel { transform: translateX(-50%) translateY(0); }
 
 /* ════════════════════════════════════════════════════════
    SNACKBAR / TOAST / OVERLAYS
