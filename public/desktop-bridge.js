@@ -1,213 +1,333 @@
-/* ─────────────────────────────────────────────────────────
-   desktop-bridge.js  —  v3
-   Carregado DEPOIS de todos os outros scripts (último <script>).
-   Estratégia: wraps feitos no DOMContentLoaded (scripts já
-   parseados), populate feito APÓS launchApp terminar (async).
-───────────────────────────────────────────────────────── */
-(function () {
+/* ═══════════════════════════════════════════════════════════════
+   desktop-bridge.js  —  v2
+   Ativa todos os elementos do layout desktop sem modificar os
+   arquivos existentes. Carregado DEPOIS de todos os outros scripts.
+═══════════════════════════════════════════════════════════════ */
+(function desktopBridge() {
 
+  /* ─── Só roda em desktop ─────────────────────────────────── */
   const IS_DESKTOP = () => window.innerWidth > 768;
 
-  /* ══════════════════════════════════════════════════════
-     IDs reais do HTML desktop — mapeamento explícito
-  ══════════════════════════════════════════════════════ */
-  const IDS = {
-    // sidebar
-    sidebarAvatar:  'sidebar-avatar',
-    sidebarName:    'sidebar-profile-name',
-    sidebarLevel:   'sidebar-profile-level',
-    streakCount:    'streak-count',
-    xpFill:         'sidebar-xp-fill',
-    // painel today
-    tsXP:           'ts-xp',
-    tsDone:         'ts-done',
-    tsStreak:       'ts-streak',
-    tsLevel:        'ts-level',
-    missionsMini:   'today-missions-mini',
-    // nav
-    bottomNav:      'bottom-nav',
-    app:            'app',
-    fabAdd:         'fab-add',
-  };
-
-  function el(id) { return document.getElementById(id); }
-  function setText(id, val) { const e = el(id); if (e) e.textContent = val; }
-
-  /* ══════════════════════════════════════════════════════
-     1. WRAPS — feitos assim que os scripts estão parseados
-        (DOMContentLoaded garante isso pois este arquivo é
-        o último <script> síncrono do body)
-  ══════════════════════════════════════════════════════ */
-  document.addEventListener('DOMContentLoaded', function () {
-
-    /* ── 1a. Wrap launchApp ────────────────────────────
-       Espera o original terminar (é async) e só então
-       limpa side-effects mobile + popula UI desktop.    */
-    const _origLaunch = window.launchApp;
-    window.launchApp = async function (primeiraintecao = false) {
-      await _origLaunch.call(this, primeiraintecao);
-      if (!IS_DESKTOP()) return;
-
-      /* Desfaz o bottom-nav que launchApp força visível */
-      const nav = el(IDS.bottomNav);
-      if (nav) { nav.classList.add('hidden'); nav.style.display = ''; }
-
-      /* Desfaz app.style.bottom injetado por switchTab */
-      const app = el(IDS.app);
-      if (app) app.style.bottom = '';
-
-      /* Popula tudo agora que state está pronto */
-      updateDesktopUI();
-    };
-
-    /* ── 1b. Wrap switchTab ────────────────────────────
-       Remove side-effects mobile pós-chamada.           */
-    const _origSwitch = window.switchTab;
-    window.switchTab = function (tab) {
-      _origSwitch.call(this, tab);
-      if (!IS_DESKTOP()) return;
-
-      const nav = el(IDS.bottomNav);
-      const app = el(IDS.app);
-      if (nav) { nav.classList.add('hidden'); nav.style.display = ''; }
-      if (app) app.style.bottom = '';
-
-      syncSidebarActive(tab);
-      if (tab === 'today') updateDesktopUI();
-    };
-
-    /* ── 1c. Wrap renderAll ────────────────────────────
-       Qualquer re-render (completar tarefa, salvar…)
-       mantém painel e sidebar sincronizados.            */
-    const _origRenderAll = window.renderAll;
-    if (typeof _origRenderAll === 'function') {
-      window.renderAll = function () {
-        _origRenderAll.call(this);
-        if (IS_DESKTOP()) updateDesktopUI();
-      };
-    }
-
-    /* ── 1d. Cliques na sidebar ────────────────────────*/
+  /* ══════════════════════════════════════════════════════════
+     1. SIDEBAR — cliques disparam switchTab
+     ══════════════════════════════════════════════════════════ */
+  function bindSidebar() {
     document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
+      if (btn._desktopBound) return;
+      btn._desktopBound = true;
       btn.addEventListener('click', () => {
         if (typeof switchTab === 'function') switchTab(btn.dataset.tab);
       });
     });
+  }
 
-    /* ── 1e. FAB desktop — bloqueia hold, abre sheet ── */
-    const fab = el(IDS.fabAdd);
-    if (fab) {
-      /* Stoppa mousedown/touchstart antes do voice.js receber */
-      fab.addEventListener('mousedown',  e => e.stopPropagation(), true);
-      fab.addEventListener('touchstart', e => e.stopPropagation(),
-        { capture: true, passive: false });
-      fab.addEventListener('click', e => {
-        e.stopPropagation();
-        if (typeof openAddTask === 'function') openAddTask();
-      }, true);
-    }
+  /* ══════════════════════════════════════════════════════════
+     2. ESPELHA estado .active da sidebar
+        Observer no bottom-nav detecta mudanças do switchTab()
+        original e replica na sidebar.
+     ══════════════════════════════════════════════════════════ */
+  function syncSidebarActive(tab) {
+    const activeTab = tab
+      ?? document.querySelector('.nav-btn.active[data-tab]')?.dataset?.tab
+      ?? window.state?.activeTab;
+    if (!activeTab) return;
+    document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+    /* Sidebar badges — missões */
+    syncSidebarBadges();
+  }
 
-  }); /* fim DOMContentLoaded */
+  function syncSidebarBadges() {
+    /* Replica badges do menu-sheet para a sidebar */
+    [
+      { src: 'menu-missions-badge', dst: '.sidebar-btn[data-tab="missions"] .sidebar-badge' },
+      { src: 'menu-empresa-badge',  dst: '.sidebar-btn[data-tab="empresa"] .sidebar-badge'  },
+    ].forEach(({ src, dst }) => {
+      const srcEl = document.getElementById(src);
+      const dstEl = document.querySelector(dst);
+      if (!srcEl || !dstEl) return;
+      dstEl.textContent = srcEl.textContent;
+      dstEl.classList.toggle('hidden', srcEl.classList.contains('hidden'));
+    });
+  }
 
-  /* ══════════════════════════════════════════════════════
-     2. POPULATE — lê state e escreve nos elementos reais
-  ══════════════════════════════════════════════════════ */
-  function updateDesktopUI() {
-    const s = window.state;
-    if (!s) return;
+  const bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) {
+    new MutationObserver(() => syncSidebarActive())
+      .observe(bottomNav, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
 
-    /* ── Sidebar ─────────────────────────────────────── */
-    const name = s.userName || '';
-    setText(IDS.sidebarName,  name);
-    setText(IDS.sidebarLevel, `Nível ${s.level ?? 1}`);
-    setText(IDS.streakCount,  s.streak ?? 0);
+  /* ══════════════════════════════════════════════════════════
+     3. PATCH switchTab — corrige estilos inline no desktop
+        e sincroniza sidebar após cada troca de aba.
+     ══════════════════════════════════════════════════════════ */
+  const _origSwitchTab = window.switchTab;
+  if (typeof _origSwitchTab === 'function') {
+    window.switchTab = function (tab) {
+      _origSwitchTab(tab);
 
-    const av = el(IDS.sidebarAvatar);
-    if (av && name) av.textContent = name[0].toUpperCase();
+      if (IS_DESKTOP()) {
+        const app    = document.getElementById('app');
+        const nav    = document.getElementById('bottom-nav');
+        if (app) app.style.bottom = '';     // remove bottom inline
+        if (nav) nav.style.display = '';    // deixa CSS decidir (será hidden)
+        syncSidebarActive(tab);
+        updateSidebarProfile();
+      }
+    };
+  }
 
-    /* XP progress bar */
-    const lvl    = s.level ?? 1;
-    const needed = typeof xpForLevel === 'function' ? xpForLevel(lvl)     : 1000;
-    const prev   = typeof xpForLevel === 'function' && lvl > 1
-                   ? xpForLevel(lvl - 1) : 0;
-    const range  = (needed - prev) || 1;
-    const pct    = Math.min(100, Math.round(((s.totalXP - prev) / range) * 100));
-    const fill   = el(IDS.xpFill);
-    if (fill) fill.style.width = pct + '%';
+  /* ══════════════════════════════════════════════════════════
+     4. PATCH renderToday — atualiza painel lateral direito
+     ══════════════════════════════════════════════════════════ */
+  const _origRenderToday = window.renderToday;
+  if (typeof _origRenderToday === 'function') {
+    window.renderToday = function () {
+      _origRenderToday();
+      if (IS_DESKTOP()) updateTodayPanel();
+    };
+  }
 
-    /* ── Stat cards (painel Today) ───────────────────── */
-    const today = typeof todayISO === 'function'
-      ? todayISO()
-      : new Date().toISOString().split('T')[0];
+  /* ══════════════════════════════════════════════════════════
+     5. PATCH renderMissions — atualiza badge da sidebar
+     ══════════════════════════════════════════════════════════ */
+  const _origRenderMissions = window.renderMissions;
+  if (typeof _origRenderMissions === 'function') {
+    window.renderMissions = function () {
+      _origRenderMissions();
+      if (IS_DESKTOP()) {
+        syncSidebarBadges();
+        renderMissionsMini();
+      }
+    };
+  }
 
-    const todayDone = (s.tasks || []).filter(
+  /* ══════════════════════════════════════════════════════════
+     6. PAINEL LATERAL TODAY — stats + mini-missões
+     ══════════════════════════════════════════════════════════ */
+  function updateTodayPanel() {
+    if (!window.state) return;
+
+    /* Tarefas concluídas hoje */
+    const today     = typeof todayISO === 'function' ? todayISO() : new Date().toISOString().split('T')[0];
+    const todayDone = (state.tasks || []).filter(
       t => t.status === 'done' && t.lastCompleted === today
     ).length;
 
-    setText(IDS.tsXP,     s.todayXP  ?? 0);
-    setText(IDS.tsDone,   todayDone);
-    setText(IDS.tsStreak, s.streak   ?? 0);
-    setText(IDS.tsLevel,  s.level    ?? 1);
+    setElText('ts-xp',     state.todayXP      ?? 0);
+    setElText('ts-done',   todayDone);
+    setElText('ts-streak', state.streak        ?? 0);
+    setElText('ts-level',  state.level         ?? 1);
 
-    /* ── Mini missões ────────────────────────────────── */
-    renderMissionsMini(s);
-
-    /* ── Sincroniza sidebar active ───────────────────── */
-    syncSidebarActive(s.activeTab);
+    updateSidebarProfile();
+    renderMissionsMini();
+    syncSidebarBadges();
   }
 
-  /* ── Missões mini no painel lateral ─────────────────── */
-  function renderMissionsMini(s) {
-    const container = el(IDS.missionsMini);
-    if (!container) return;
+  function updateSidebarProfile() {
+    if (!window.state) return;
 
-    const missions = (s.missions || []).slice(0, 4);
+    /* XP bar */
+    const needed = typeof xpForLevel === 'function' ? xpForLevel(state.level ?? 1) : 1000;
+    const prev   = (state.level > 1 && typeof xpForLevel === 'function')
+      ? xpForLevel((state.level ?? 1) - 1) : 0;
+    const range  = Math.max(1, needed - prev);
+    const pct    = Math.min(100, Math.round(((state.totalXP - prev) / range) * 100));
+
+    const fill = document.getElementById('sidebar-xp-fill');
+    if (fill) fill.style.width = pct + '%';
+
+    /* Nome, nível, avatar */
+    setElText('sidebar-profile-name',  state.userName ?? '');
+    setElText('sidebar-profile-level', `Nível ${state.level ?? 1}`);
+
+    const av = document.getElementById('sidebar-avatar');
+    if (av && state.userName) av.textContent = state.userName[0].toUpperCase();
+
+    /* Streak pill */
+    const sc = document.getElementById('streak-count');
+    if (sc) sc.textContent = state.streak ?? 0;
+  }
+
+  function renderMissionsMini() {
+    const el = document.getElementById('today-missions-mini');
+    if (!el || !window.state?.missions) return;
+
+    const missions = state.missions.slice(0, 3);
     if (!missions.length) {
-      container.innerHTML =
-        '<p style="font-size:12px;color:var(--text-muted);padding:4px 0 2px;">Nenhuma missão ativa.</p>';
+      el.innerHTML = '<p style="font-size:12px;color:var(--text-muted);padding:4px 0;">Nenhuma missão ativa.</p>';
       return;
     }
 
-    container.innerHTML = missions.map(m => {
-      const pct   = m.target > 0
-        ? Math.min(100, Math.round((m.progress / m.target) * 100)) : 0;
+    el.innerHTML = missions.map(m => {
+      const pct = m.target > 0 ? Math.min(100, Math.round((m.progress / m.target) * 100)) : 0;
+      const titleSafe = typeof escHtml === 'function' ? escHtml(m.title) : m.title;
       const color = m.done ? 'var(--accent-teal)' : 'var(--accent)';
-      const txtColor = m.done ? 'var(--accent-teal)' : 'var(--text-sec)';
-      const title = typeof escHtml === 'function' ? escHtml(m.title) : m.title;
-
       return `
         <div style="margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-            <span style="font-size:12px;font-weight:700;color:${txtColor};
-              flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${title}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;">
+            <span style="font-size:12px;font-weight:700;color:${m.done ? 'var(--accent-teal)' : 'var(--text-sec)'};
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">
+              ${titleSafe}
             </span>
-            <span style="font-size:10px;font-family:'Rajdhani',sans-serif;
-              font-weight:700;color:${color};flex-shrink:0;">
+            <span style="font-size:10px;color:${color};font-family:'Rajdhani',sans-serif;font-weight:700;flex-shrink:0;">
               +${m.xp} XP
             </span>
           </div>
-          <div style="height:3px;background:var(--bg-primary);border-radius:2px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${color};
-              border-radius:2px;transition:width .3s;"></div>
+          <div style="height:4px;background:var(--bg-card2,#1a1a24);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .3s;"></div>
           </div>
-          <div style="font-size:10px;margin-top:3px;color:${m.done ? 'var(--accent-teal)' : 'var(--text-muted)'};">
-            ${m.done ? '✓ Concluída' : `${m.progress}/${m.target}`}
+          <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">
+            ${m.done ? '✓ Concluída' : `${m.progress} / ${m.target}`}
           </div>
         </div>`;
     }).join('');
   }
 
-  /* ── Sidebar: marca botão ativo ──────────────────────── */
-  function syncSidebarActive(activeTab) {
-    const tab = activeTab ?? window.state?.activeTab;
-    if (!tab) return;
-    document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.tab === tab);
-    });
+  /* ══════════════════════════════════════════════════════════
+     7. FABs E BOTÕES DO PAINEL LATERAL
+     ══════════════════════════════════════════════════════════ */
+  function bindPanelButtons() {
+    /* #fab-add — Nova tarefa (painel lateral today) */
+    const fabAdd = document.getElementById('fab-add');
+    if (fabAdd && !fabAdd._desktopBound) {
+      fabAdd._desktopBound = true;
+      /* No desktop: clique simples abre o sheet diretamente,
+         ignorando o hold/voice do voice.js (capture: true) */
+      fabAdd.addEventListener('click', (e) => {
+        if (!IS_DESKTOP()) return;
+        /* Só age se NÃO vier do hold-ring do voice.js */
+        if (e.target.closest('.fab-hold-ring')) return;
+        e.stopPropagation();
+        if (typeof openAddTask === 'function') openAddTask();
+      }, true);
+    }
+
+    /* #plan-add-cat — Nova categoria (painel lateral today) */
+    const catBtn = document.getElementById('plan-add-cat');
+    if (catBtn && !catBtn._desktopBound) {
+      catBtn._desktopBound = true;
+      catBtn.addEventListener('click', () => {
+        if (typeof openAddCat === 'function') openAddCat();
+      });
+    }
+
+    /* #fab-plan-add — Nova tarefa (header da aba Planejar) */
+    const fabPlan = document.getElementById('fab-plan-add');
+    if (fabPlan && !fabPlan._desktopBound) {
+      fabPlan._desktopBound = true;
+      fabPlan.addEventListener('click', () => {
+        if (!window.state) return;
+        const date = state.planView === 'tomorrow'
+          ? (typeof tomorrowISO === 'function' ? tomorrowISO() : null)
+          : (typeof todayISO === 'function'    ? todayISO()    : null);
+        if (typeof openAddTask === 'function') openAddTask(date);
+      });
+    }
   }
 
-  /* Expõe para uso externo se necessário */
-  window._desktopUpdateUI = updateDesktopUI;
+  /* ══════════════════════════════════════════════════════════
+     8. HEADER DESKTOP — esconde botão de menu mobile,
+        garante que o avatar do header aponta para settings
+     ══════════════════════════════════════════════════════════ */
+  function adjustDesktopHeader() {
+    if (!IS_DESKTOP()) return;
+
+    /* Esconde botão hamburguer/avatar do header mobile */
+    const openMenuBtn = document.getElementById('open-menu');
+    if (openMenuBtn) openMenuBtn.style.display = 'none';
+
+    /* Esconde bottom-nav completamente no desktop */
+    const nav = document.getElementById('bottom-nav');
+    if (nav) nav.classList.add('hidden');
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     9. SETTINGS — garante que os campos refletem state
+        quando a aba é aberta pela sidebar
+     ══════════════════════════════════════════════════════════ */
+  function patchSettingsTab() {
+    /* renderSettings já existe no app.js — só garantimos que
+       é chamado quando o switchTab('settings') roda via sidebar */
+    /* Já coberto pelo patch do switchTab acima */
+
+    /* Botão "Sair da conta" — já está no Inicializacao.js,
+       mas o #reset-btn precisa estar acessível; não duplicamos. */
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     10. SWIPE NAV — desativa no desktop (não faz sentido)
+     ══════════════════════════════════════════════════════════ */
+  function disableSwipeNavOnDesktop() {
+    if (!IS_DESKTOP()) return;
+    /* O swipe nav do app.js usa touchstart/touchmove no .screen-scroll.
+       No desktop, mouse events não disparam touch, então não é necessário
+       desativar — mas bloqueamos qualquer tentativa de pointer events
+       que possam causar side effects. */
+    document.documentElement.classList.add('is-desktop');
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     11. RESIZE — readapta ao redimensionar janela
+     ══════════════════════════════════════════════════════════ */
+  let _resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      if (IS_DESKTOP()) {
+        adjustDesktopHeader();
+        const app = document.getElementById('app');
+        if (app) app.style.bottom = '';
+        const nav = document.getElementById('bottom-nav');
+        if (nav) nav.classList.add('hidden');
+        syncSidebarActive();
+        updateTodayPanel();
+      } else {
+        /* Voltou para mobile — remove classe e deixa CSS/JS original agir */
+        document.documentElement.classList.remove('is-desktop');
+      }
+    }, 120);
+  });
+
+  /* ══════════════════════════════════════════════════════════
+     12. INICIALIZAÇÃO — roda após o DOM + scripts estarem prontos
+     ══════════════════════════════════════════════════════════ */
+  function boot() {
+    bindSidebar();
+    bindPanelButtons();
+    adjustDesktopHeader();
+    disableSwipeNavOnDesktop();
+
+    if (IS_DESKTOP()) {
+      syncSidebarActive();
+      updateTodayPanel();
+
+      /* Garante estado inicial correto da tab "today" */
+      const active = window.state?.activeTab ?? 'today';
+      syncSidebarActive(active);
+    }
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    /* Scripts já carregados — aguarda um tick para que o init() do
+       Inicializacao.js também já tenha rodado */
+    setTimeout(boot, 0);
+  } else {
+    window.addEventListener('load', boot);
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     13. EXPOSIÇÃO GLOBAL (útil para renderAll e outros pontos)
+     ══════════════════════════════════════════════════════════ */
+  window._desktopUpdatePanel  = updateTodayPanel;
+  window._desktopSyncSidebar  = syncSidebarActive;
+  window._desktopUpdateBadges = syncSidebarBadges;
+
+  /* ─── Helper ───────────────────────────────────────────── */
+  function setElText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
 
 })();
