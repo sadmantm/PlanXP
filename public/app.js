@@ -970,10 +970,60 @@ function renderToday() {
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
   const mins  = todayTasks.reduce((s, t) => s + (t.estimateMinutes || 0), 0);
 
-  document.getElementById('h-greeting').textContent   = greeting();
-  document.getElementById('h-name').textContent       = state.userName;
-  document.getElementById('h-avatar').textContent     = state.userName[0].toUpperCase();
-  document.getElementById('streak-count').textContent = state.streak;
+  // ── Elementos mobile (podem não existir no desktop — acesso seguro) ──
+  const greetVal   = greeting();
+  const nameVal    = state.userName;
+  const avatarVal  = state.userName[0].toUpperCase();
+  const streakVal  = state.streak;
+
+  const elGreeting = document.getElementById('h-greeting');
+  const elName     = document.getElementById('h-name');
+  const elAvatar   = document.getElementById('h-avatar');
+  const elStreak   = document.getElementById('streak-count');
+
+  if (elGreeting) elGreeting.textContent = greetVal;
+  if (elName)     elName.textContent     = nameVal;
+  if (elAvatar)   elAvatar.textContent   = avatarVal;
+  if (elStreak)   elStreak.textContent   = streakVal;
+
+  // ── Desktop: espelha para os elementos da sidebar/header ──
+  if (window.innerWidth > 768) {
+    // Header da tela Today
+    const dsGreet = document.querySelector('#screen-today .greeting-sub');
+    const dsName  = document.querySelector('#screen-today .greeting-name');
+    if (dsGreet) dsGreet.textContent = greetVal;
+    if (dsName)  dsName.textContent  = nameVal;
+
+    // Sidebar — perfil
+    const sbName  = document.getElementById('sidebar-profile-name');
+    const sbLevel = document.getElementById('sidebar-profile-level');
+    const sbAv    = document.getElementById('sidebar-avatar');
+    const sbSC    = document.getElementById('streak-count'); // mesmo ID na sidebar
+    if (sbName)  sbName.textContent  = nameVal;
+    if (sbLevel) sbLevel.textContent = `Nível ${state.level ?? 1}`;
+    if (sbAv)    sbAv.textContent    = avatarVal;
+    if (sbSC)    sbSC.textContent    = streakVal;
+
+    // XP bar da sidebar
+    const needed = typeof xpForLevel === 'function' ? xpForLevel(state.level ?? 1) : 1000;
+    const prev   = (state.level > 1 && typeof xpForLevel === 'function') ? xpForLevel(state.level - 1) : 0;
+    const xpPct  = Math.min(100, Math.round(((state.totalXP - prev) / Math.max(1, needed - prev)) * 100));
+    const xpFill = document.getElementById('sidebar-xp-fill');
+    if (xpFill) xpFill.style.width = xpPct + '%';
+
+    // Stats do painel lateral direito
+    const elTsXp     = document.getElementById('ts-xp');
+    const elTsDone   = document.getElementById('ts-done');
+    const elTsStreak = document.getElementById('ts-streak');
+    const elTsLevel  = document.getElementById('ts-level');
+    if (elTsXp)     elTsXp.textContent     = state.todayXP  ?? 0;
+    if (elTsDone)   elTsDone.textContent   = done;
+    if (elTsStreak) elTsStreak.textContent = state.streak   ?? 0;
+    if (elTsLevel)  elTsLevel.textContent  = state.level    ?? 1;
+
+    // Mini-missões no painel lateral direito
+    _renderMissionsMiniPanel();
+  }
 
   document.getElementById('hero-date').textContent = friendlyDate();
   document.getElementById('hero-summary').textContent =
@@ -1020,6 +1070,43 @@ function renderToday() {
   else hint?.classList.add('hidden');
 
   window.initSectionCollapseBindings?.();
+}
+
+// ── Renderiza mini-missões no painel lateral do desktop ──────────
+function _renderMissionsMiniPanel() {
+  const el = document.getElementById('today-missions-mini');
+  if (!el || !window.state?.missions) return;
+
+  const missions = state.missions.slice(0, 3);
+  if (!missions.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--text-muted);padding:4px 0;">Nenhuma missão ativa.</p>';
+    return;
+  }
+
+  el.innerHTML = missions.map(m => {
+    const pct       = m.target > 0 ? Math.min(100, Math.round((m.progress / m.target) * 100)) : 0;
+    const color     = m.done ? 'var(--accent-teal)' : 'var(--accent)';
+    const titleSafe = typeof escHtml === 'function' ? escHtml(m.title) : m.title;
+    return `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;">
+          <span style="font-size:12px;font-weight:700;
+            color:${m.done ? 'var(--accent-teal)' : 'var(--text-sec)'};
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">
+            ${titleSafe}
+          </span>
+          <span style="font-size:10px;color:${color};font-family:'Rajdhani',sans-serif;font-weight:700;flex-shrink:0;">
+            +${m.xp} XP
+          </span>
+        </div>
+        <div style="height:4px;background:var(--bg-card2,#1a1a24);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .3s;"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">
+          ${m.done ? '✓ Concluída' : `${m.progress} / ${m.target}`}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function isRemindToday(task) {
