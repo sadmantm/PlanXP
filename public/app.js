@@ -3974,6 +3974,7 @@ function injectDesktopSidebar() {
 
 function updateSidebarProfile() {
   if (window.innerWidth < 1024) return;
+  console.log('[updateSidebarProfile] Atualizando perfil lateral');
   const el = id => document.getElementById(id);
   if (el('sb-avatar'))       el('sb-avatar').textContent       = state.userName[0].toUpperCase();
   if (el('sb-profile-name')) el('sb-profile-name').textContent = state.userName;
