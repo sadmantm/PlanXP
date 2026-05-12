@@ -32,7 +32,9 @@ db.pragma('foreign_keys = ON');
 /* ── Middlewares ─────────────────────────────────────────── */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: false
+}));
 
 app.get('/', (req, res) => {
   const ua = (req.headers['user-agent'] || '').toLowerCase();
