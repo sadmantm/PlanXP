@@ -3892,6 +3892,100 @@ function renderAll() {
 }
 //#endregion
 
+//#region Pc Queries
+function injectDesktopSidebar() {
+  if (window.innerWidth < 1024) return;
+  if (document.getElementById('desktop-sidebar')) return;
+
+  const sidebar = document.createElement('div');
+  sidebar.id = 'desktop-sidebar';
+  sidebar.innerHTML = `
+    <div class="sb-logo">
+      <i class="fa-solid fa-bolt"></i> PlanXP
+    </div>
+
+    <button class="sb-new-task" id="sb-new-task-btn">
+      <i class="fa-solid fa-plus"></i> Nova Tarefa
+    </button>
+
+    <nav class="sb-nav">
+      <button class="sb-btn active" data-tab="today">
+        <i class="fa-solid fa-sun"></i> Hoje
+      </button>
+      <button class="sb-btn" data-tab="plan">
+        <i class="fa-solid fa-list-check"></i> Planejar
+      </button>
+      <button class="sb-btn" data-tab="focus">
+        <i class="fa-solid fa-bolt"></i> Foco
+      </button>
+      <div class="sb-divider"></div>
+      <button class="sb-btn" data-tab="missions">
+        <i class="fa-solid fa-crosshairs"></i> Missões
+        <span class="sb-badge hidden" id="sb-missions-badge"></span>
+      </button>
+      <button class="sb-btn" data-tab="achievements">
+        <i class="fa-solid fa-trophy"></i> Conquistas
+      </button>
+      <button class="sb-btn" data-tab="timeline">
+        <i class="fa-solid fa-timeline"></i> Linha do Tempo
+      </button>
+      <button class="sb-btn" data-tab="seasonal">
+        <i class="fa-solid fa-calendar-days"></i> Calendário
+      </button>
+      <button class="sb-btn" data-tab="empresa">
+        <i class="fa-solid fa-building"></i> Empresa
+      </button>
+      <div class="sb-divider"></div>
+      <button class="sb-btn" data-tab="settings">
+        <i class="fa-solid fa-gear"></i> Configurações
+      </button>
+    </nav>
+
+    <div class="sb-profile" id="sb-profile-btn">
+      <div class="sb-avatar" id="sb-avatar">H</div>
+      <div class="sb-profile-info">
+        <div class="sb-profile-name" id="sb-profile-name">Herói</div>
+        <div class="sb-profile-level" id="sb-profile-level">Nível 1</div>
+      </div>
+      <div class="sb-streak" id="sb-streak">
+        <i class="fa-solid fa-fire"></i>
+        <span id="sb-streak-count">0</span>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(sidebar);
+
+  // Botão nova tarefa
+  sidebar.querySelector('#sb-new-task-btn').addEventListener('click', () => openAddTask());
+
+  // Navegação
+  sidebar.querySelectorAll('.sb-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      goToScreen(btn.dataset.tab);
+      sidebar.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Perfil abre menu
+  sidebar.querySelector('#sb-profile-btn').addEventListener('click', () => openSheet('menu-sheet'));
+}
+
+function updateSidebarProfile() {
+  if (window.innerWidth < 1024) return;
+  const el = id => document.getElementById(id);
+  if (el('sb-avatar'))       el('sb-avatar').textContent       = state.userName[0].toUpperCase();
+  if (el('sb-profile-name')) el('sb-profile-name').textContent = state.userName;
+  if (el('sb-profile-level')) el('sb-profile-level').textContent = `Nível ${state.level} — ${currentLevelTitle()}`;
+  if (el('sb-streak-count')) el('sb-streak-count').textContent = state.streak;
+  // badge de missões
+  const pending = state.missions?.filter(m => !m.done).length || 0;
+  const badge   = el('sb-missions-badge');
+  if (badge) { badge.textContent = pending; badge.classList.toggle('hidden', pending === 0); }
+}
+//#endregion
+
 //#region Resumo Diário
 function todayKey() {
   const d = new Date();
