@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0E0E14" />
+  <title>PlanXP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="desktop.css">
+</head>
+<body>
+
+<div id="gen-cards-overlay"></div>
+
+<!-- ── AUTH ───────────────────────────────────────────── -->
+<div id="auth-screen" class="auth-screen hidden">
+  <canvas id="auth-particles"></canvas>
+  <div class="auth-logo"><span>PlanXP</span></div>
+  <div class="auth-tagline"><span class="auth-tagline-text"></span></div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" data-auth="login">Entrar</button>
+    <button class="auth-tab" data-auth="register">Criar conta</button>
+  </div>
+  <div class="auth-panel" id="auth-login-panel">
+    <div class="auth-input-wrap">
+      <i class="fa-solid fa-envelope auth-input-icon"></i>
+      <input type="email" id="auth-login-email" class="auth-input" placeholder="E-mail" autocomplete="email" />
+    </div>
+    <div class="auth-input-wrap">
+      <i class="fa-solid fa-lock auth-input-icon"></i>
+      <input type="password" id="auth-login-pass" class="auth-input" placeholder="Senha" autocomplete="current-password" />
+      <button class="auth-eye-btn" id="auth-login-eye" tabindex="-1"><i class="fa-regular fa-eye"></i></button>
+    </div>
+    <button class="auth-forgot">Esqueci minha senha</button>
+    <button class="btn-primary w-full auth-submit-btn" id="auth-login-btn">
+      <i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:7px"></i>Entrar
+    </button>
+  </div>
+  <div class="auth-panel hidden" id="auth-register-panel">
+    <div class="auth-input-wrap">
+      <i class="fa-solid fa-user auth-input-icon"></i>
+      <input type="text" id="auth-reg-name" class="auth-input" placeholder="Seu nome" maxlength="24" autocomplete="name" />
+    </div>
+    <div class="auth-input-wrap">
+      <i class="fa-solid fa-envelope auth-input-icon"></i>
+      <input type="email" id="auth-reg-email" class="auth-input" placeholder="E-mail" autocomplete="email" />
+    </div>
+    <div class="auth-input-wrap">
+      <i class="fa-solid fa-lock auth-input-icon"></i>
+      <input type="password" id="auth-reg-pass" class="auth-input" placeholder="Senha (mín. 6 caracteres)" autocomplete="new-password" />
+      <button class="auth-eye-btn" id="auth-reg-eye" tabindex="-1"><i class="fa-regular fa-eye"></i></button>
+    </div>
+    <div class="auth-strength-wrap" id="auth-strength-wrap">
+      <div class="auth-strength-track"><div class="auth-strength-fill" id="auth-strength-fill"></div></div>
+      <span class="auth-strength-label" id="auth-strength-label">Fraca</span>
+    </div>
+    <button class="btn-primary w-full auth-submit-btn" id="auth-register-btn">
+      <i class="fa-solid fa-bolt" style="margin-right:7px"></i>Criar conta
+    </button>
+    <p class="auth-terms">Ao criar uma conta você concorda com os <span class="auth-link">Termos de Uso</span>.</p>
+  </div>
+  <div class="auth-feedback hidden" id="auth-feedback"></div>
+</div>
+
+<!-- ── ONBOARDING ───────────────────────────────────── -->
+<div id="onboarding" class="onboarding hidden">
+  <canvas id="ob-particles"></canvas>
+  <div class="ob-progress-track"><div class="ob-progress-fill" id="ob-progress-fill"></div></div>
+  <div class="ob-screen active" id="ob-1">
+    <div class="ob-logo"><div class="ob-logo-icon"><i class="fa-solid fa-bolt"></i></div><span>PlanXP</span></div>
+    <h1 class="ob-title">Transforme suas<br>tarefas em <span class="ob-title-accent">conquistas.</span></h1>
+    <p class="ob-sub">Vamos personalizar sua experiência em alguns passos.</p>
+    <button class="btn-primary w-full ob-next ob-cta-pulse" data-next="ob-2"><i class="fa-solid fa-arrow-right"></i> Começar</button>
+  </div>
+  <div class="ob-screen" id="ob-2">
+    <div class="ob-step-label">1 / 5</div>
+    <h2 class="ob-heading">Como você se chama?</h2>
+    <p class="ob-hint">Usaremos isso para personalizar sua jornada.</p>
+    <div class="ob-input-wrap"><i class="fa-solid fa-user ob-input-icon"></i><input type="text" id="ob-name" class="ob-input" placeholder="Seu nome ou apelido" maxlength="24" autocomplete="off"/></div>
+    <button class="btn-primary w-full ob-next" data-next="ob-3">Continuar</button>
+  </div>
+  <div class="ob-screen" id="ob-3">
+    <div class="ob-step-label">2 / 5</div>
+    <h2 class="ob-heading">Qual é o seu foco principal?</h2>
+    <p class="ob-hint">Isso ajuda a sugerir categorias e tarefas relevantes.</p>
+    <div class="ob-options" id="ob-profile-opts">
+      <button class="ob-opt" data-val="Estudante"><span class="ob-opt-icon"><i class="fa-solid fa-graduation-cap"></i></span><span class="ob-opt-text"><strong>Estudante</strong><small>Provas, resumos, projetos</small></span></button>
+      <button class="ob-opt" data-val="Trabalho"><span class="ob-opt-icon"><i class="fa-solid fa-briefcase"></i></span><span class="ob-opt-text"><strong>Trabalho</strong><small>Reuniões, entregas, metas</small></span></button>
+      <button class="ob-opt" data-val="Projetos Pessoais"><span class="ob-opt-icon"><i class="fa-solid fa-rocket"></i></span><span class="ob-opt-text"><strong>Projetos Pessoais</strong><small>Ideias, criação, side projects</small></span></button>
+      <button class="ob-opt" data-val="Saúde e Bem-estar"><span class="ob-opt-icon"><i class="fa-solid fa-heart-pulse"></i></span><span class="ob-opt-text"><strong>Saúde e Bem-estar</strong><small>Treinos, hábitos, autocuidado</small></span></button>
+    </div>
+    <button class="btn-primary w-full ob-next" data-next="ob-4">Continuar</button>
+  </div>
+  <div class="ob-screen" id="ob-4">
+    <div class="ob-step-label">3 / 5</div>
+    <h2 class="ob-heading">Como é seu ritmo de trabalho?</h2>
+    <p class="ob-hint">Ajusta as missões diárias ao seu nível de energia.</p>
+    <div class="ob-options" id="ob-rhythm-opts">
+      <button class="ob-opt" data-val="leve"><span class="ob-opt-icon"><i class="fa-solid fa-feather"></i></span><span class="ob-opt-text"><strong>Leve</strong><small>Poucas tarefas, sem pressão</small></span></button>
+      <button class="ob-opt" data-val="moderado"><span class="ob-opt-icon"><i class="fa-solid fa-gauge-med"></i></span><span class="ob-opt-text"><strong>Moderado</strong><small>Rotina equilibrada</small></span></button>
+      <button class="ob-opt" data-val="intenso"><span class="ob-opt-icon"><i class="fa-solid fa-fire"></i></span><span class="ob-opt-text"><strong>Intenso</strong><small>Alta produtividade, sem desculpas</small></span></button>
+    </div>
+    <button class="btn-primary w-full ob-next" data-next="ob-5">Continuar</button>
+  </div>
+  <div class="ob-screen" id="ob-5">
+    <div class="ob-step-label">4 / 5</div>
+    <h2 class="ob-heading">Quando você é mais produtivo?</h2>
+    <p class="ob-hint">Priorizamos suas tarefas importantes no seu pico de energia.</p>
+    <div class="ob-options" id="ob-peak-opts">
+      <button class="ob-opt" data-val="manha"><span class="ob-opt-icon"><i class="fa-solid fa-sun"></i></span><span class="ob-opt-text"><strong>Manhã</strong><small>Entre 6h e 12h</small></span></button>
+      <button class="ob-opt" data-val="tarde"><span class="ob-opt-icon"><i class="fa-solid fa-cloud-sun"></i></span><span class="ob-opt-text"><strong>Tarde</strong><small>Entre 12h e 18h</small></span></button>
+      <button class="ob-opt" data-val="noite"><span class="ob-opt-icon"><i class="fa-solid fa-moon"></i></span><span class="ob-opt-text"><strong>Noite</strong><small>Após 18h</small></span></button>
+      <button class="ob-opt" data-val="variavel"><span class="ob-opt-icon"><i class="fa-solid fa-shuffle"></i></span><span class="ob-opt-text"><strong>Varia muito</strong><small>Depende do dia</small></span></button>
+    </div>
+    <button class="btn-primary w-full ob-next" data-next="ob-6">Continuar</button>
+  </div>
+  <div class="ob-screen" id="ob-6">
+    <div class="ob-step-label">5 / 5</div>
+    <h2 class="ob-heading">Qual é seu maior desafio?</h2>
+    <p class="ob-hint">Isso afina como organizamos suas tarefas.</p>
+    <div class="ob-options" id="ob-challenge-opts">
+      <button class="ob-opt" data-val="procrastinacao"><span class="ob-opt-icon"><i class="fa-solid fa-hourglass-half"></i></span><span class="ob-opt-text"><strong>Procrastinação</strong><small>Dificuldade de começar</small></span></button>
+      <button class="ob-opt" data-val="foco"><span class="ob-opt-icon"><i class="fa-solid fa-brain"></i></span><span class="ob-opt-text"><strong>Manter o foco</strong><small>Muitas distrações</small></span></button>
+      <button class="ob-opt" data-val="sobrecarga"><span class="ob-opt-icon"><i class="fa-solid fa-layer-group"></i></span><span class="ob-opt-text"><strong>Sobrecarga</strong><small>Tarefas demais, tempo de menos</small></span></button>
+      <button class="ob-opt" data-val="consistencia"><span class="ob-opt-icon"><i class="fa-solid fa-calendar-check"></i></span><span class="ob-opt-text"><strong>Consistência</strong><small>Dificuldade em manter a rotina</small></span></button>
+    </div>
+    <div class="ob-daily-goal-row">
+      <label class="ob-goal-label"><i class="fa-solid fa-bullseye"></i> Meta diária de tarefas</label>
+      <div class="ob-goal-stepper">
+        <button class="ob-step-btn" id="ob-goal-minus"><i class="fa-solid fa-minus"></i></button>
+        <span id="ob-goal-val">5</span>
+        <button class="ob-step-btn" id="ob-goal-plus"><i class="fa-solid fa-plus"></i></button>
+      </div>
+    </div>
+    <button class="btn-primary w-full ob-finish-btn" id="ob-finish"><i class="fa-solid fa-bolt"></i> Começar minha jornada</button>
+  </div>
+  <div class="ob-screen" id="ob-7">
+    <div class="ob-finish-anim">
+      <div class="ob-ring-wrap">
+        <svg class="ob-ring-svg" viewBox="0 0 120 120"><circle class="ob-ring-bg" cx="60" cy="60" r="52"/><circle class="ob-ring-arc" cx="60" cy="60" r="52" id="ob-ring-arc"/></svg>
+        <div class="ob-ring-icon" id="ob-ring-icon"><i class="fa-solid fa-bolt"></i></div>
+      </div>
+      <p class="ob-finish-label" id="ob-finish-label"></p>
+      <p class="ob-finish-sub" id="ob-finish-sub"></p>
+    </div>
+  </div>
+  <div class="ob-screen" id="ob-8">
+    <div class="ob-tut-header">
+      <div class="ob-step-label" id="ob-tut-step-label">1 / 7</div>
+      <h2 class="ob-heading" id="ob-tut-title"></h2>
+      <p class="ob-hint" id="ob-tut-desc"></p>
+    </div>
+    <div class="ob-tut-visual" id="ob-tut-visual"></div>
+    <div class="ob-tut-dots" id="ob-tut-dots"></div>
+    <div class="ob-tut-nav">
+      <button class="ob-tut-skip" id="ob-tut-skip">Pular</button>
+      <button class="btn-primary ob-tut-next" id="ob-tut-next">Próximo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── OVERLAYS ──────────────────────────────────────── -->
+<div id="levelup-overlay" class="levelup-overlay hidden">
+  <div class="levelup-backdrop"></div>
+  <div class="levelup-content">
+    <div class="levelup-badge-wrap">
+      <svg class="levelup-ring-svg" viewBox="0 0 160 160"><circle class="levelup-ring-bg" cx="80" cy="80" r="70"/><circle class="levelup-ring-glow" cx="80" cy="80" r="70" id="levelup-ring-arc"/></svg>
+      <div class="levelup-badge-inner"><span class="levelup-label">NÍVEL</span><div class="levelup-number" id="levelup-num">8</div></div>
+    </div>
+    <div class="levelup-title" id="levelup-title">Explorador</div>
+    <p class="levelup-sub">Você subiu de nível. Continue assim!</p>
+    <div class="levelup-rewards"><div class="levelup-reward-pill"><i class="fa-solid fa-bolt"></i> Novas missões desbloqueadas</div></div>
+  </div>
+</div>
+
+<div id="snackbar" class="snackbar hidden">
+  <span id="snackbar-msg">Tarefa concluída</span>
+  <button id="snackbar-undo">Desfazer</button>
+</div>
+<div id="xp-toast" class="xp-toast hidden"><span id="xp-toast-text">+30 XP</span></div>
+
+<div id="day-summary" class="fullmodal hidden">
+  <div class="fullmodal-backdrop"></div>
+  <div class="fullmodal-panel">
+    <div class="ds-header"><i class="fa-solid fa-sun ds-icon"></i><h2>Resumo de Ontem</h2><p class="ds-sub">Veja como foi seu dia</p></div>
+    <div class="ds-cards" id="ds-cards"></div>
+    <button class="btn-primary w-full" id="ds-close">Começar o Dia</button>
+  </div>
+</div>
+
+<!-- Adiar Tarefa -->
+<div id="postpone-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="postpone-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">Adiar para...</h3>
+    <div class="postpone-quick">
+      <button class="postpone-chip" data-days="1"><i class="fa-solid fa-sun"></i><span>Amanhã</span></button>
+      <button class="postpone-chip" data-days="2"><i class="fa-solid fa-forward"></i><span>Depois de amanhã</span></button>
+      <button class="postpone-chip" data-weekend="1"><i class="fa-solid fa-umbrella-beach"></i><span>Fim de semana</span></button>
+      <button class="postpone-chip" data-days="7"><i class="fa-solid fa-calendar-week"></i><span>Semana que vem</span></button>
+    </div>
+    <div class="postpone-divider"><span>ou escolha</span></div>
+    <div class="postpone-custom">
+      <div class="postpone-custom-row">
+        <div class="postpone-field"><label><i class="fa-regular fa-calendar"></i> Data</label><input type="date" id="postpone-date-input" class="date-input" /></div>
+        <div class="postpone-field"><label><i class="fa-regular fa-clock"></i> Horário <span class="opt-label">opcional</span></label><input type="time" id="postpone-time-input" class="time-input" /></div>
+      </div>
+      <button class="btn-primary w-full" id="postpone-confirm-btn" disabled><i class="fa-solid fa-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="reactivate-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="reactivate-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <div style="text-align:center;padding:8px 0 20px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--accent-teal,#4ECDC4)1a;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;color:var(--accent-teal,#4ECDC4);"><i class="fa-solid fa-rotate-left"></i></div>
+      <h3 class="sheet-title" style="margin-bottom:6px;">Reativar tarefa?</h3>
+      <p id="reactivate-task-name" style="font-size:13px;color:var(--text-muted,#888);margin:0 16px;line-height:1.4;"></p>
+    </div>
+    <button class="btn-primary w-full" id="reactivate-confirm-btn"><i class="fa-solid fa-rotate-left" style="margin-right:6px;"></i>Sim, reativar</button>
+    <button class="btn-danger w-full" id="reactivate-cancel-btn" style="margin-top:10px;background:transparent;border:1px solid var(--border,#333);color:var(--text-muted,#888);">Cancelar</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Task Sheet -->
+<div id="add-task-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="add-task-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="task-sheet-title">Nova Tarefa</h3>
+    <div class="quick-add-row"><input type="text" id="task-title-input" placeholder='Ex: "Reunião às 14h #empresa !obrigatório"' maxlength="100" /></div>
+    <p class="quick-add-hint">Use <code>#categoria</code> e <code>!importância</code> para captura rápida</p>
+    <div class="form-row">
+      <div class="form-group half"><label>Data</label><input type="date" id="task-due-date" class="date-input" /></div>
+      <div class="form-group half"><label>Horário</label><input type="time" id="task-time" class="time-input" /></div>
+    </div>
+    <div class="form-group"><label>Categoria</label><div class="category-pills" id="cat-pills"></div></div>
+    <div class="form-group">
+      <label>Importância</label>
+      <div class="importance-grid" id="importance-grid">
+        <button class="imp-btn active" data-imp="Obrigatório"><span class="imp-dot imp-mandatory"></span>Obrigatório<span class="imp-xp">100 XP</span></button>
+        <button class="imp-btn" data-imp="Necessário"><span class="imp-dot imp-necessary"></span>Necessário<span class="imp-xp">60 XP</span></button>
+        <button class="imp-btn" data-imp="Padrão"><span class="imp-dot imp-standard"></span>Padrão<span class="imp-xp">30 XP</span></button>
+        <button class="imp-btn" data-imp="Ideia"><span class="imp-dot imp-idea"></span>Ideia<span class="imp-xp">10 XP</span></button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <div class="task-type-toggle" id="task-type-toggle">
+        <button class="task-type-btn active" data-type="task"><i class="fa-solid fa-circle-check"></i> Tarefa</button>
+        <button class="task-type-btn" data-type="mission"><i class="fa-solid fa-crosshairs"></i> Missão</button>
+      </div>
+      <p class="task-type-hint hidden" id="task-type-mission-hint"><i class="fa-solid fa-wand-magic-sparkles"></i> A IA vai quebrar isso em subtarefas ao salvar.</p>
+    </div>
+    <div class="form-group">
+      <label><i class="fa-solid fa-align-left" style="margin-right:5px;color:var(--text-muted)"></i>Mais informações<span style="font-size:10px;color:var(--text-muted);font-weight:400;margin-left:4px;">(opcional)</span></label>
+      <textarea id="task-notes" class="task-notes-input" placeholder="Contexto, detalhes, links..." maxlength="500" rows="3"></textarea>
+      <div class="notes-char-counter"><span id="notes-char-count">0</span>/500</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group half"><label>Recorrência</label><select id="task-repeat" class="select-input"><option value="none">Sem repetição</option><option value="daily">Diária</option><option value="weekdays">Dias úteis</option><option value="weekly">Semanal</option></select></div>
+      <div class="form-group half"><label>Energia</label><select id="task-energy" class="select-input"><option value="medium">Padrão</option><option value="low">Baixa</option><option value="high">Alta</option></select></div>
+    </div>
+    <div class="form-group">
+      <label>Lembrete antecipado</label>
+      <div class="remind-pills" id="remind-pills">
+        <button class="remind-pill active" data-val="none">Nenhum</button>
+        <button class="remind-pill" data-val="1d">1 dia</button>
+        <button class="remind-pill" data-val="7d">1 semana</button>
+        <button class="remind-pill" data-val="30d">1 mês</button>
+        <button class="remind-pill" data-val="custom">Personalizado</button>
+      </div>
+      <div id="remind-custom-wrap" class="hidden" style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+        <input type="number" id="remind-custom-days" class="num-input" placeholder="Ex: 3" min="1" max="365" style="width:90px;" />
+        <span style="font-size:13px;color:var(--text-muted)">dias antes</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Modo insistente<span class="insistent-badge hidden" id="insistent-badge">ON</span></label>
+      <p style="font-size:11px;color:var(--text-muted);margin:2px 0 8px;line-height:1.4;">Enche seu saco até você concluir ou adiar.</p>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label class="toggle-switch"><input type="checkbox" id="task-insistent-toggle" /><span class="toggle-slider"></span></label>
+        <span style="font-size:13px;color:var(--text-muted)" id="insistent-label">Desativado</span>
+      </div>
+      <div id="insistent-interval-wrap" class="hidden" style="margin-top:10px;">
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Repetir a cada</label>
+        <div class="remind-pills" id="insistent-pills">
+          <button class="remind-pill active" data-val="5">5 min</button>
+          <button class="remind-pill" data-val="10">10 min</button>
+          <button class="remind-pill" data-val="15">15 min</button>
+          <button class="remind-pill" data-val="30">30 min</button>
+          <button class="remind-pill" data-val="60">1 hora</button>
+          <button class="remind-pill" data-val="custom">Personalizado</button>
+        </div>
+        <div id="insistent-custom-wrap" class="hidden" style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+          <input type="number" id="insistent-custom-min" class="num-input" placeholder="Ex: 20" min="1" max="1440" style="width:90px;" />
+          <span style="font-size:13px;color:var(--text-muted)">minutos</span>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary w-full mt-16" id="save-task-btn">Salvar Tarefa</button>
+  </div>
+</div>
+
+<!-- Add Category Sheet -->
+<div id="add-cat-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="add-cat-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">Nova Categoria</h3>
+    <div class="form-group"><label>Nome</label><input type="text" id="cat-name-input" class="text-input" placeholder="Ex: Saúde, Estudos..." maxlength="20" /></div>
+    <div class="form-group"><label>Cor</label><div class="color-picker" id="color-picker"></div></div>
+    <div class="form-group"><label>Ícone</label><div class="icon-picker" id="icon-picker"></div></div>
+    <button class="btn-primary w-full mt-16" id="save-cat-btn">Criar Categoria</button>
+  </div>
+</div>
+
+<!-- Menu Sheet -->
+<div id="menu-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="menu-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <div class="menu-profile-row" id="menu-profile-row"></div>
+    <nav class="menu-nav">
+      <button class="menu-nav-btn" data-goto="seasonal"><i class="fa-solid fa-calendar-days"></i>Calendário Sazonal</button>
+      <button class="menu-nav-btn" data-goto="empresa"><i class="fa-solid fa-building"></i>Minha Empresa<span id="menu-empresa-badge" class="menu-badge hidden"></span></button>
+      <button class="menu-nav-btn" data-goto="missions"><i class="fa-solid fa-crosshairs"></i>Missões do Dia<span id="menu-missions-badge" class="menu-badge hidden"></span></button>
+      <button class="menu-nav-btn" data-goto="achievements"><i class="fa-solid fa-trophy"></i>Conquistas</button>
+      <button class="menu-nav-btn" data-goto="timeline"><i class="fa-solid fa-timeline"></i>Linha do Tempo</button>
+      <button class="menu-nav-btn" data-goto="settings"><i class="fa-solid fa-gear"></i>Configurações</button>
+    </nav>
+  </div>
+</div>
+
+<div id="add-subtask-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="add-subtask-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">Adicionar Subtarefa</h3>
+    <p id="add-subtask-mission-name" style="font-size:12px;color:var(--text-muted);margin:-8px 0 14px;padding:0 2px;"></p>
+    <div class="task-type-toggle" id="subtask-mode-toggle" style="margin-bottom:16px;">
+      <button class="task-type-btn active" data-mode="manual"><i class="fa-solid fa-pen"></i> Manual</button>
+      <button class="task-type-btn" data-mode="ai"><i class="fa-solid fa-wand-magic-sparkles"></i> Sugerir com IA</button>
+    </div>
+    <div id="subtask-manual-panel">
+      <div class="form-group"><label>Título da subtarefa</label><input type="text" id="subtask-title-input" class="text-input" placeholder="Ex: Pesquisar referências..." maxlength="100" /></div>
+      <div class="form-row">
+        <div class="form-group half"><label>Horário</label><input type="time" id="task-time2" class="time-input" /></div>
+        <div class="form-group half"><label>XP</label><input type="number" id="subtask-xp-input" class="num-input" placeholder="30" min="5" max="200" /></div>
+      </div>
+      <div class="form-group"><label>Dica <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(opcional)</span></label><input type="text" id="subtask-tip-input" class="text-input" placeholder="Dica rápida de até 60 chars" maxlength="60" /></div>
+      <button class="btn-primary w-full mt-16" id="subtask-save-btn"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>Adicionar</button>
+    </div>
+    <div id="subtask-ai-panel" class="hidden">
+      <div class="form-group"><label>Contexto adicional <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(opcional)</span></label><textarea id="subtask-ai-context" class="task-notes-input" rows="2" placeholder="Ex: preciso de algo simples para iniciar..." maxlength="200"></textarea></div>
+      <button class="btn-primary w-full mt-16" id="subtask-ai-btn"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:6px;"></i>Gerar sugestões</button>
+      <div id="subtask-ai-results" class="hidden" style="margin-top:16px;">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Selecione as que deseja adicionar:</p>
+        <div id="subtask-ai-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button class="btn-primary w-full mt-16" id="subtask-ai-confirm-btn"><i class="fa-solid fa-circle-check" style="margin-right:6px;"></i>Adicionar selecionadas</button>
+      </div>
+      <div id="subtask-ai-loading" class="hidden" style="display:flex;align-items:center;gap:10px;padding:14px 0;">
+        <div class="mtc-spinner"></div>
+        <span style="font-size:13px;color:var(--text-muted);font-weight:600;">Gerando sugestões...</span>
+      </div>
+    </div>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- Cal Day Detail Sheet -->
+<div id="cal-day-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="cal-day-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <div class="cal-day-header">
+      <div class="cal-day-icon-wrap" id="cal-day-icon-wrap"><i id="cal-day-icon" class="fa-solid fa-star"></i></div>
+      <div class="cal-day-header-info">
+        <span class="cal-day-title" id="cal-day-title">Data</span>
+        <span class="cal-day-date" id="cal-day-date"></span>
+        <span class="cal-day-type" id="cal-day-type"></span>
+      </div>
+    </div>
+    <div class="cal-day-section-label">Tarefas do dia</div>
+    <div id="cal-day-task-list"></div>
+    <button class="btn-primary w-full mt-16" id="cal-day-add-btn"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>Nova tarefa neste dia</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- Voice Sheet -->
+<div id="voice-sheet" class="voice-sheet">
+  <div class="voice-sheet-backdrop" id="voice-sheet-backdrop"></div>
+  <div class="voice-sheet-panel">
+    <div class="voice-sheet-handle"></div>
+    <div class="voice-mic-wrap"><i class="fa-solid fa-microphone"></i></div>
+    <p class="voice-sheet-label" id="voice-label">Ouvindo...</p>
+    <p class="voice-sheet-hint" id="voice-hint">Descreva sua tarefa. Toque em <strong>Gerar tarefa</strong> quando terminar.</p>
+    <p class="voice-transcript" id="voice-transcript"></p>
+    <div class="voice-bars" id="voice-bars"><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div></div>
+    <button class="voice-stop-btn" id="voice-stop-btn"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:7px;"></i>Gerar tarefa</button>
+    <button class="voice-cancel-btn" id="voice-cancel-btn">Cancelar</button>
+  </div>
+</div>
+
+<!-- Empresa sheets -->
+<div id="criar-empresa-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="criar-empresa-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">Criar Empresa</h3>
+    <div class="form-group"><label>Nome da empresa</label><input type="text" id="input-empresa-nome" class="text-input" placeholder="Ex: Acme Corp, Studio X..." maxlength="40" /></div>
+    <div class="form-group">
+      <label>Segmento <span style="font-size:10px;color:var(--text-muted);font-weight:400">(opcional)</span></label>
+      <div class="empresa-segmento-grid" id="segmento-grid">
+        <button class="empresa-seg-btn active" data-seg="Tecnologia"><i class="fa-solid fa-microchip"></i> Tecnologia</button>
+        <button class="empresa-seg-btn" data-seg="Educação"><i class="fa-solid fa-graduation-cap"></i> Educação</button>
+        <button class="empresa-seg-btn" data-seg="Saúde"><i class="fa-solid fa-heart-pulse"></i> Saúde</button>
+        <button class="empresa-seg-btn" data-seg="Varejo"><i class="fa-solid fa-shop"></i> Varejo</button>
+        <button class="empresa-seg-btn" data-seg="Financeiro"><i class="fa-solid fa-chart-line"></i> Financeiro</button>
+        <button class="empresa-seg-btn" data-seg="Outro"><i class="fa-solid fa-ellipsis"></i> Outro</button>
+      </div>
+    </div>
+    <button class="btn-primary w-full mt-16" id="btn-confirmar-criar-empresa"><i class="fa-solid fa-building" style="margin-right:7px"></i>Criar</button>
+  </div>
+</div>
+<div id="entrar-empresa-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="entrar-empresa-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">Entrar em uma Empresa</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin:-10px 0 18px;line-height:1.5">Peça o código de convite ao administrador da empresa.</p>
+    <div class="form-group"><label>Código de convite</label><input type="text" id="input-codigo-convite" class="text-input empresa-code-input" placeholder="Ex: ABC123" maxlength="8" style="letter-spacing:0.18em;font-family:'JetBrains Mono',monospace;font-size:16px;text-transform:uppercase" /></div>
+    <button class="btn-primary w-full mt-16" id="btn-confirmar-entrar-empresa"><i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:7px"></i>Entrar</button>
+  </div>
+</div>
+<div id="empresa-settings-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="empresa-settings-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">Configurações da Empresa</h3>
+    <div class="form-group"><label>Nome da empresa</label><input type="text" id="settings-empresa-nome" class="text-input" maxlength="40" /></div>
+    <div class="form-group"><label>Segmento</label><select id="settings-empresa-segmento" class="select-input"><option value="Tecnologia">Tecnologia</option><option value="Educação">Educação</option><option value="Saúde">Saúde</option><option value="Varejo">Varejo</option><option value="Financeiro">Financeiro</option><option value="Outro">Outro</option></select></div>
+    <button class="btn-primary w-full mt-16" id="btn-salvar-empresa-settings">Salvar Alterações</button>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+      <div class="empresa-section-header" style="margin-bottom:12px"><p class="settings-section-label">Grupos</p><button class="empresa-add-btn" id="btn-criar-grupo"><i class="fa-solid fa-plus"></i></button></div>
+      <div id="settings-group-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="settings-empty-groups" class="hidden" style="text-align:center;padding:20px 0 4px;color:var(--text-muted);font-size:13px"><i class="fa-solid fa-layer-group" style="opacity:.2;font-size:22px;display:block;margin-bottom:8px"></i>Nenhum grupo criado ainda.</div>
+    </div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+      <p class="settings-section-label" style="margin-bottom:12px">Zona de perigo</p>
+      <button class="btn-danger w-full" id="btn-sair-empresa" style="background:rgba(239,71,111,0.1);border:1px solid rgba(239,71,111,0.25);color:#EF476F"><i class="fa-solid fa-arrow-right-from-bracket" style="margin-right:7px"></i>Sair da Empresa</button>
+      <button class="btn-danger w-full mt-10" id="btn-deletar-empresa"><i class="fa-solid fa-trash" style="margin-right:7px"></i>Excluir Empresa</button>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+</div>
+<div id="grupo-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="grupo-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="grupo-sheet-title">Novo Grupo</h3>
+    <div class="form-group"><label>Nome do grupo</label><input type="text" id="input-grupo-nome" class="text-input" placeholder="Ex: Desenvolvimento, Vendas..." maxlength="30" /></div>
+    <div class="form-group"><label>Finalidade <span style="font-size:10px;color:var(--text-muted);font-weight:400">(opcional)</span></label><textarea id="input-grupo-finalidade" class="task-notes-input" placeholder="Descreva o objetivo deste grupo..." maxlength="200" rows="3"></textarea></div>
+    <div class="form-group"><label>Cor do grupo</label><div class="color-picker" id="grupo-color-picker"></div></div>
+    <div class="form-group"><label>Ícone</label><div class="icon-picker" id="grupo-icon-picker"></div></div>
+    <div id="grupo-members-section" class="hidden">
+      <div class="empresa-section-header" style="margin-bottom:10px"><span class="empresa-section-title">Membros neste grupo</span><span id="grupo-members-count" style="font-size:12px;color:var(--text-muted)">0 membros</span></div>
+      <div id="grupo-members-list" style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px"></div>
+    </div>
+    <button class="btn-primary w-full mt-16" id="btn-salvar-grupo">Salvar Grupo</button>
+    <button class="btn-danger w-full mt-10" id="btn-deletar-grupo" style="display:none"><i class="fa-solid fa-trash" style="margin-right:7px"></i>Excluir Grupo</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+<div id="membro-grupo-sheet" class="bottom-sheet hidden">
+  <div class="sheet-backdrop" data-close="membro-grupo-sheet"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <div class="membro-sheet-profile" id="membro-sheet-profile">
+      <div class="membro-avatar-big" id="membro-sheet-avatar">A</div>
+      <div><p class="membro-sheet-name" id="membro-sheet-name">Nome</p><p class="membro-sheet-role" id="membro-sheet-role">Membro</p></div>
+    </div>
+    <div class="empresa-section-header" style="margin:16px 0 10px"><span class="empresa-section-title">Atribuir ao grupo</span></div>
+    <div id="membro-grupo-options" style="display:flex;flex-direction:column;gap:7px"></div>
+    <button class="btn-primary w-full mt-16" id="btn-salvar-membro-grupo">Salvar</button>
+    <div style="height:18px"></div>
+    <button class="btn-danger w-full" id="btn-remover-membro" style="background:rgba(239,71,111,0.1);border:1px solid rgba(239,71,111,0.25);color:#EF476F"><i class="fa-solid fa-user-minus" style="margin-right:7px"></i>Remover da empresa</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- ── MAIN APP ──────────────────────────────────────── -->
+<div id="app" class="hidden">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <i class="fa-solid fa-bolt sidebar-logo-icon"></i>
+      <span>PlanXP</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="sidebar-btn active" data-tab="today">
+        <i class="fa-solid fa-sun"></i>
+        <span>Hoje</span>
+      </button>
+      <button class="sidebar-btn" data-tab="plan">
+        <i class="fa-solid fa-list-check"></i>
+        <span>Planejar</span>
+      </button>
+      <button class="sidebar-btn" data-tab="focus">
+        <i class="fa-solid fa-bolt"></i>
+        <span>Foco</span>
+      </button>
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-btn" data-tab="seasonal">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>Calendário</span>
+      </button>
+      <button class="sidebar-btn" data-tab="empresa">
+        <i class="fa-solid fa-building"></i>
+        <span>Empresa</span>
+        <span id="menu-empresa-badge" class="sidebar-badge hidden"></span>
+      </button>
+      <button class="sidebar-btn" data-tab="missions">
+        <i class="fa-solid fa-crosshairs"></i>
+        <span>Missões</span>
+        <span id="menu-missions-badge" class="sidebar-badge hidden"></span>
+      </button>
+      <button class="sidebar-btn" data-tab="achievements">
+        <i class="fa-solid fa-trophy"></i>
+        <span>Conquistas</span>
+      </button>
+      <button class="sidebar-btn" data-tab="timeline">
+        <i class="fa-solid fa-timeline"></i>
+        <span>Timeline</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="sidebar-btn" data-tab="settings">
+        <i class="fa-solid fa-gear"></i>
+        <span>Configurações</span>
+      </button>
+
+      <!-- User profile mini -->
+      <div class="sidebar-profile" id="sidebar-profile">
+        <div class="sidebar-avatar" id="sidebar-avatar">H</div>
+        <div class="sidebar-profile-info">
+          <span class="sidebar-profile-name" id="sidebar-profile-name">Herói</span>
+          <span class="sidebar-profile-level" id="sidebar-profile-level">Nível 1</span>
+        </div>
+        <div class="streak-pill sidebar-streak" id="h-streak">
+          <i class="fa-solid fa-fire"></i><span id="streak-count">0</span>
+        </div>
+      </div>
+
+      <!-- XP bar -->
+      <div class="sidebar-xp-bar">
+        <div class="sidebar-xp-fill" id="sidebar-xp-fill"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="main-content" id="main-content">
+
+    <!-- ── SCREEN: TODAY ── -->
+    <section class="tab-screen active" id="screen-today">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <div class="header-left">
+            <p class="greeting-sub" id="h-greeting">Bom dia</p>
+            <h1 class="greeting-name" id="h-name">Herói</h1>
+          </div>
+          <div class="header-right">
+            <button class="icon-btn" id="open-menu" aria-label="Menu" style="display:none">
+              <div class="avatar-mini" id="h-avatar">H</div>
+            </button>
+          </div>
+        </header>
+
+        <div class="today-layout">
+          <!-- Left col: Hero + tasks -->
+          <div class="today-main">
+            <div class="hero-card" id="hero-card">
+              <div class="hero-top">
+                <div>
+                  <p class="hero-date" id="hero-date">Segunda, 27 de abr</p>
+                  <p class="hero-summary" id="hero-summary">0 tarefas</p>
+                </div>
+                <div class="hero-pct" id="hero-pct">0%</div>
+              </div>
+              <div class="progress-track"><div class="progress-fill" id="hero-fill"></div></div>
+              <div class="hero-next" id="hero-next">
+                <span class="hero-next-label"><i class="fa-solid fa-bolt-lightning"></i> Próxima ação</span>
+                <span class="hero-next-task" id="hero-next-task">Nenhuma tarefa pendente</span>
+              </div>
+            </div>
+
+            <div id="seasonal-banner-today"></div>
+
+            <div class="task-section" id="sec-now">
+              <div class="section-header" id="sec-now">
+                <span class="section-title"><i class="fa-solid fa-circle-dot"></i> Agora</span>
+                <i class="fa-solid fa-chevron-down sec-chevron" id="sec-now-chevron"></i>
+              </div>
+              <div class="task-list" id="list-now"></div>
+              <div class="empty-inline hidden" id="empty-now">
+                <div class="empty-first-cta">
+                  <i class="fa-solid fa-bolt-lightning"></i>
+                  <p>Sua missão começa aqui!</p>
+                  <span>Adicione sua primeira tarefa urgente e ganhe XP ao concluí-la.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="task-section" id="sec-later">
+              <div class="section-header" id="sec-later">
+                <span class="section-title"><i class="fa-regular fa-clock"></i> Depois</span>
+                <i class="fa-solid fa-chevron-down sec-chevron" id="sec-later-chevron"></i>
+              </div>
+              <div class="task-list" id="list-later"></div>
+              <div class="empty-inline hidden" id="empty-later">
+                <div class="empty-first-cta">
+                  <i class="fa-regular fa-clock"></i>
+                  <p>Sem tarefas para depois.</p>
+                  <span>Planeje o que vem a seguir.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="task-section" id="sec-ideas">
+              <div class="section-header collapsible" id="toggle-ideas">
+                <span class="section-title"><i class="fa-regular fa-lightbulb"></i> Ideias</span>
+                <i class="fa-solid fa-chevron-down sec-chevron" id="chevron-ideas"></i>
+              </div>
+              <div class="task-list collapsible-body" id="list-ideas"></div>
+            </div>
+
+            <div style="height:40px;"></div>
+          </div>
+
+          <!-- Right col: Quick stats -->
+          <aside class="today-sidebar-panel">
+            <div class="today-panel-card">
+              <div class="today-panel-title"><i class="fa-solid fa-chart-simple"></i> Progresso</div>
+              <div class="today-stats-grid">
+                <div class="today-stat">
+                  <span class="today-stat-val rajdhani" id="ts-xp">0</span>
+                  <span class="today-stat-label">XP hoje</span>
+                </div>
+                <div class="today-stat">
+                  <span class="today-stat-val rajdhani" id="ts-done">0</span>
+                  <span class="today-stat-label">Concluídas</span>
+                </div>
+                <div class="today-stat">
+                  <span class="today-stat-val rajdhani" id="ts-streak">0</span>
+                  <span class="today-stat-label">Sequência</span>
+                </div>
+                <div class="today-stat">
+                  <span class="today-stat-val rajdhani" id="ts-level">1</span>
+                  <span class="today-stat-label">Nível</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="today-panel-card">
+              <div class="today-panel-title"><i class="fa-solid fa-crosshairs"></i> Missões</div>
+              <div id="today-missions-mini"></div>
+            </div>
+
+            <div class="today-panel-card">
+              <div class="today-panel-title"><i class="fa-solid fa-bolt"></i> Ação rápida</div>
+              <button class="btn-primary w-full" id="fab-add" style="margin-bottom:8px">
+                <i class="fa-solid fa-plus" style="margin-right:6px"></i>Nova tarefa
+              </button>
+              <button class="btn-secondary w-full" id="plan-add-cat">
+                <i class="fa-solid fa-folder-plus" style="margin-right:6px"></i>Nova categoria
+              </button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: Calendario ── -->
+    <section class="tab-screen" id="screen-seasonal">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Calendário Sazonal</h2>
+        </header>
+        <div id="seasonal-content"></div>
+        <div style="height:24px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: PLAN ── -->
+    <section class="tab-screen" id="screen-plan">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Planejar</h2>
+          <button class="icon-btn" id="fab-plan-add" aria-label="Nova tarefa">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </header>
+
+        <div class="plan-tabs" id="plan-tabs">
+          <button class="plan-tab active" data-view="today">Hoje</button>
+          <button class="plan-tab" data-view="tomorrow">Amanhã</button>
+          <button class="plan-tab" data-view="week">Semana</button>
+          <button class="plan-tab" data-view="overdue">Atrasadas</button>
+          <button class="plan-tab" data-view="category">Categorias</button>
+          <button class="plan-tab" data-view="priority">Prioridade</button>
+        </div>
+
+        <div id="plan-filters" class="plan-filters">
+          <div id="cat-chips-plan" class="cat-chips"></div>
+        </div>
+
+        <div id="plan-content"></div>
+        <div style="height:40px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: FOCUS ── -->
+    <section class="tab-screen" id="screen-focus">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Modo Foco</h2>
+          <div class="session-counter"><i class="fa-solid fa-bolt"></i><span id="session-count">0</span> sessões</div>
+        </header>
+
+        <div class="focus-layout">
+          <div class="focus-main">
+            <div class="focus-task-selector">
+              <label class="focus-select-label">Tarefa em foco</label>
+              <select id="focus-task-select" class="select-input w-full"></select>
+            </div>
+            <div class="focus-duration-row">
+              <label class="focus-dur-label">Duração: <span id="dur-label">25 min</span></label>
+              <input type="range" min="5" max="60" value="25" step="5" id="dur-slider" />
+            </div>
+            <div class="timer-ring-container">
+              <svg class="timer-ring" viewBox="0 0 220 220">
+                <circle class="ring-bg" cx="110" cy="110" r="96" />
+                <circle class="ring-fill" id="ring-fill" cx="110" cy="110" r="96" />
+              </svg>
+              <div class="timer-display">
+                <div class="timer-time" id="timer-display">25:00</div>
+                <div class="timer-state" id="timer-state">Pronto</div>
+              </div>
+            </div>
+            <div class="focus-controls">
+              <button class="focus-btn secondary" id="focus-reset" aria-label="Reiniciar"><i class="fa-solid fa-rotate-left"></i></button>
+              <button class="focus-btn primary" id="focus-start" aria-label="Iniciar"><i class="fa-solid fa-play"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:40px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: MISSIONS ── -->
+    <section class="tab-screen" id="screen-missions">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Missões do Dia</h2>
+          <div class="mission-timer"><i class="fa-regular fa-clock"></i><span id="mission-countdown">--:--:--</span></div>
+        </header>
+        <div id="missions-list" class="missions-list"></div>
+        <div style="height:40px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: ACHIEVEMENTS ── -->
+    <section class="tab-screen" id="screen-achievements">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Conquistas</h2>
+        </header>
+        <div class="badges-grid" id="badges-grid"></div>
+        <div style="height:40px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: TIMELINE ── -->
+    <section class="tab-screen" id="screen-timeline">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Linha do Tempo</h2>
+        </header>
+        <div class="timeline" id="timeline"></div>
+        <div style="height:40px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: SETTINGS ── -->
+    <section class="tab-screen" id="screen-settings">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title">Configurações</h2>
+        </header>
+        <div class="settings-layout">
+          <div class="settings-card">
+            <div class="settings-row"><span class="settings-label">Nome</span><input type="text" id="settings-name" class="settings-input" maxlength="24" /></div>
+            <div class="settings-row"><span class="settings-label">Perfil</span><select id="settings-profile" class="settings-select"><option value="Estudante">Estudante</option><option value="Trabalho">Trabalho</option><option value="Projetos Pessoais">Projetos Pessoais</option><option value="Saúde e Bem-estar">Saúde e Bem-estar</option></select></div>
+          </div>
+          <div class="settings-card mt-16">
+            <div class="settings-row"><span class="settings-label">XP Total</span><span class="settings-val rajdhani" id="s-xp">0</span></div>
+            <div class="settings-row"><span class="settings-label">Nível</span><span class="settings-val rajdhani" id="s-level">1</span></div>
+            <div class="settings-row"><span class="settings-label">Moedas</span><span class="settings-val rajdhani" id="s-coins">0</span></div>
+          </div>
+          <button class="btn-danger mt-16" id="reset-btn">Sair da conta</button>
+        </div>
+        <div style="height:40px;"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN: EMPRESA ── -->
+    <section class="tab-screen" id="screen-empresa">
+      <div class="screen-scroll">
+        <header class="app-header desktop-header">
+          <h2 class="page-title" id="empresa-page-title">Minha Empresa</h2>
+          <div style="width:36px"></div>
+        </header>
+        <div id="empresa-empty-state">
+          <div class="empresa-welcome-card">
+            <div class="empresa-welcome-icon"><i class="fa-solid fa-building"></i></div>
+            <h3 class="empresa-welcome-title">Crie ou entre em uma empresa</h3>
+            <p class="empresa-welcome-sub">Gerencie equipes, atribua tarefas e acompanhe o progresso de todos em um só lugar.</p>
+            <button class="btn-primary w-full" id="btn-criar-empresa"><i class="fa-solid fa-plus" style="margin-right:7px"></i>Criar Empresa</button>
+            <button class="btn-secondary w-full mt-10" id="btn-entrar-empresa"><i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:7px"></i>Entrar com Código</button>
+          </div>
+        </div>
+        <div id="empresa-dashboard" class="hidden">
+          <div class="empresa-hero-card">
+            <div class="empresa-hero-left"><div class="empresa-logo" id="empresa-logo-display">A</div><div><p class="empresa-hero-name" id="empresa-nome-display">Acme Corp</p><p class="empresa-hero-meta" id="empresa-meta-display">0 membros · 0 grupos</p></div></div>
+            <button class="empresa-settings-btn" id="btn-empresa-settings"><i class="fa-solid fa-gear"></i></button>
+          </div>
+          <div class="empresa-invite-row">
+            <div class="empresa-invite-info"><span class="empresa-invite-label">Código de convite</span><span class="empresa-invite-code" id="empresa-invite-code">––––––</span></div>
+            <button class="empresa-copy-btn" id="btn-copy-invite"><i class="fa-regular fa-copy"></i></button>
+          </div>
+          <div class="empresa-tabs" id="empresa-tabs">
+            <button class="empresa-tab active" data-etab="membros"><i class="fa-solid fa-users"></i> Membros</button>
+            <button class="empresa-tab" data-etab="tarefas"><i class="fa-solid fa-list-check"></i> Tarefas</button>
+          </div>
+          <div class="empresa-tab-content active" id="etab-membros">
+            <div class="empresa-section-header"><span class="empresa-section-title">Membros da empresa</span></div>
+            <div class="empresa-filter-row" id="membros-filter-row"><button class="empresa-filter-chip active" data-filter="todos">Todos</button></div>
+            <div class="empresa-member-list" id="empresa-member-list"></div>
+          </div>
+          <div class="empresa-tab-content hidden" id="etab-tarefas">
+            <div class="empresa-filter-row" id="tarefas-filter-row">
+              <button class="empresa-filter-chip active" data-tfilter="todas">Todas</button>
+              <button class="empresa-filter-chip" data-tfilter="pendente">Pendentes</button>
+              <button class="empresa-filter-chip" data-tfilter="concluida">Concluídas</button>
+            </div>
+            <div id="empresa-tarefas-list" class="empresa-tarefas-list"></div>
+            <div class="empresa-empty-groups hidden" id="empresa-empty-tarefas"><i class="fa-solid fa-list-check"></i><p>Nenhuma tarefa atribuída.</p><span>Atribua tarefas aos membros a partir dos cards de tarefa.</span></div>
+            <div class="empresa-naoadmin-notice hidden" id="empresa-tarefas-naoadmin"><i class="fa-solid fa-lock"></i><p>Apenas administradores</p><span>Somente admins podem visualizar as tarefas atribuídas à equipe.</span></div>
+          </div>
+        </div>
+        <div style="height:40px"></div>
+      </div>
+    </section>
+
+  </main><!-- /#main-content -->
+</div><!-- /#app -->
+
+<!-- bottom-nav mantido (hidden no desktop via CSS) -->
+<nav class="bottom-nav hidden" id="bottom-nav">
+  <div class="nav-pill">
+    <button class="nav-btn active" data-tab="today"><i class="fa-solid fa-sun"></i><span>Hoje</span></button>
+    <button class="nav-btn" data-tab="plan"><i class="fa-solid fa-list-check"></i><span>Planejar</span></button>
+    <button class="nav-btn" data-tab="focus"><i class="fa-solid fa-bolt"></i><span>Foco</span></button>
+  </div>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script src="app.js"></script>
+<script src="auth.js"></script>
+<script src="Inicializacao.js"></script>
+<script src="onboarding.js"></script>
+<script src="voice.js"></script>
+<script src="foco.js"></script>
+<script src="empresas.js"></script>
+<script src="./util/permissoes.js"></script>
+<script src="./util/calendar-data.js"></script>
+<script src="./util/calendar-reminders.js"></script>
+<script src="./util/TAKS_TEMPLATES.js"></script>
+<script src="./NativeBridge.js"></script>
+</body>
+</html>

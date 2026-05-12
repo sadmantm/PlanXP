@@ -34,6 +34,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/', (req, res) => {
+  const ua = (req.headers['user-agent'] || '').toLowerCase();
+
+  const isMobile =
+    /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
+
+  if (isMobile) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
+
+  return res.sendFile(path.join(__dirname, 'public', 'desktop.html'));
+});
+
 /* ── Multer ──────────────────────────────────────────────── */
 const upload = multer({
   dest: os.tmpdir(),
