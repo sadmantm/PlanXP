@@ -79,14 +79,77 @@
   }
 
   /* ══════════════════════════════════════════════════════════
-     4. PATCH renderToday — atualiza painel lateral direito
+     4. PATCH renderToday — garante que os IDs que só existem
+        no HTML mobile não quebrem no desktop, e depois
+        atualiza o painel lateral com os dados corretos.
      ══════════════════════════════════════════════════════════ */
+
+  /* Cria elementos-fantasma invisíveis para os IDs mobile que
+     renderToday() tenta acessar mas não existem no desktop.
+     Assim o JS original não joga erros e o DOM fica limpo.    */
+  const MOBILE_ONLY_IDS = [
+    'h-greeting', 'h-name', 'h-avatar', 'streak-count',
+  ];
+
+  function ensureGhostElements() {
+    if (!IS_DESKTOP()) return;
+    const ghost = document.getElementById('_desktop-ghost-pool')
+      ?? (() => {
+        const d = document.createElement('div');
+        d.id = '_desktop-ghost-pool';
+        d.style.cssText = 'display:none!important;position:absolute;pointer-events:none;';
+        document.body.appendChild(d);
+        return d;
+      })();
+
+    MOBILE_ONLY_IDS.forEach(id => {
+      if (!document.getElementById(id)) {
+        const el = document.createElement('span');
+        el.id = id;
+        ghost.appendChild(el);
+      }
+    });
+  }
+
   const _origRenderToday = window.renderToday;
   if (typeof _origRenderToday === 'function') {
     window.renderToday = function () {
+      if (IS_DESKTOP()) ensureGhostElements();
       _origRenderToday();
-      if (IS_DESKTOP()) updateTodayPanel();
+      if (IS_DESKTOP()) {
+        updateTodayPanel();
+        /* Espelha os valores que renderToday() escreveu nos
+           fantasmas para os elementos reais da sidebar/desktop */
+        mirrorMobileToDesktop();
+      }
     };
+  }
+
+  /* Lê o que renderToday() escreveu nos IDs mobile e
+     replica nos elementos visíveis do layout desktop.        */
+  function mirrorMobileToDesktop() {
+    if (!window.state) return;
+
+    /* Saudação + nome no header desktop */
+    const greeting = document.getElementById('h-greeting')?.textContent ?? '';
+    const name     = document.getElementById('h-name')?.textContent     ?? state.userName ?? '';
+
+    /* Header desktop: .greeting-sub e .greeting-name */
+    const greetEl = document.querySelector('#screen-today .greeting-sub');
+    const nameEl  = document.querySelector('#screen-today .greeting-name');
+    if (greetEl) greetEl.textContent = greeting;
+    if (nameEl)  nameEl.textContent  = name;
+
+    /* Avatar mini no header (se existir no desktop) */
+    const avatarMini = document.getElementById('h-avatar');
+    if (avatarMini && state.userName)
+      avatarMini.textContent = state.userName[0].toUpperCase();
+
+    /* Streak pill no header */
+    const streakEl = document.getElementById('h-streak');
+    const streakCount = document.getElementById('streak-count');
+    if (streakEl && streakCount)
+      streakCount.textContent = state.streak ?? 0;
   }
 
   /* ══════════════════════════════════════════════════════════
