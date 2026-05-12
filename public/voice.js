@@ -20,6 +20,7 @@ const holdCircle = holdRing?.querySelector('circle');
 const holdGlow   = fab.querySelector('.fab-hold-glow');
 const ring       = fab.querySelector('.fab-implode-ring');
 const CIRCUMFERENCE = 2 * Math.PI * 27; // ≈ 169.6
+const IS_VOICE_FAB = !!holdRing;
 let holdRaf       = null;
 let holdStartTime = null;
 
@@ -42,22 +43,29 @@ let audioChunks    = [];
   fab.addEventListener('touchstart', onFabDown, { passive: false });
   fab.addEventListener('mousedown',  onFabDown);
 
-  fab.addEventListener('touchend', (e) => {
-    const held = holdTimer !== null;
-    onFabUp();
-    // Se o hold não disparou (toque rápido) → clique normal
-    if (held) openAddTask();
-  });
-
   fab.addEventListener('mouseup', (e) => {
     const held = holdTimer !== null;
     onFabUp();
     if (held) openAddTask();
   });
 
+  fab.addEventListener('touchend', () => {
+    const held = holdTimer !== null;
+    onFabUp();
+    if (held && IS_VOICE_FAB) openAddTask();
+  });
+  
+  fab.addEventListener('mouseup', () => {
+    const held = holdTimer !== null;
+    onFabUp();
+    if (held && IS_VOICE_FAB) openAddTask();
+    // desktop sem IS_VOICE_FAB: o clique normal já é tratado pelo desktop-bridge
+  });
+  
   fab.addEventListener('mouseleave', onFabUp);
 
   function startHoldAnimation() {
+    if (!IS_VOICE_FAB) return;
     holdRing?.classList.add('active');
     holdGlow?.classList.add('active');
     fab.classList.add('holding');
@@ -70,29 +78,25 @@ let audioChunks    = [];
   
       if (holdCircle) {
         holdCircle.style.strokeDashoffset = offset;
-        // stroke vai de roxo-accent para danger conforme progride
         const r1 = [124, 111, 205], r2 = [71, 121, 239];
         const r = Math.round(r1[0] + (r2[0] - r1[0]) * progress);
         const g = Math.round(r1[1] + (r2[1] - r1[1]) * progress);
         const b = Math.round(r1[2] + (r2[2] - r1[2]) * progress);
         holdCircle.style.stroke = `rgb(${r},${g},${b})`;
-        // transição do stroke: remove a transition linear pois atualizamos via rAF
         holdCircle.style.transition = 'none';
       }
   
-      if (progress < 1) {
-        holdRaf = requestAnimationFrame(tick);
-      }
+      if (progress < 1) holdRaf = requestAnimationFrame(tick);
     }
     holdRaf = requestAnimationFrame(tick);
   }
   
   function stopHoldAnimation(completed = false) {
+    if (!IS_VOICE_FAB) return;
     cancelAnimationFrame(holdRaf);
     holdRaf = null;
   
     if (!completed) {
-      // Cancela suavemente
       holdRing?.classList.remove('active');
       holdGlow?.classList.remove('active');
       fab.classList.remove('holding');
@@ -101,7 +105,6 @@ let audioChunks    = [];
         holdCircle.style.strokeDashoffset = CIRCUMFERENCE;
       }
     } else {
-      // Completo — some junto com a implosão
       holdGlow?.classList.remove('active');
       setTimeout(() => {
         holdRing?.classList.remove('active');
@@ -109,9 +112,10 @@ let audioChunks    = [];
         fab.classList.remove('holding');
       }, 300);
     }
-  }
+  }  
   
   function onFabDown(e) {
+    if (!IS_VOICE_FAB) return; // desktop: ignora hold, o clique simples já abre o sheet
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
     startHoldAnimation();
@@ -123,6 +127,7 @@ let audioChunks    = [];
     }, HOLD_MS);
   }
   
+  
   function onFabUp() {
     if (holdTimer !== null) {
       clearTimeout(holdTimer);
@@ -131,15 +136,17 @@ let audioChunks    = [];
     }
   }
   
-  // ── Animação de implosão ─────────────────────────────────
   function triggerImplode() {
+    if (!ring) return;
     ring.classList.remove('animate');
     void ring.offsetWidth;
     ring.classList.add('animate');
     fab.classList.add('voice-mode');
-    fab.querySelector('i').className = 'fa-solid fa-microphone';
+    const icon = fab.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-microphone';
     ring.addEventListener('animationend', () => ring.classList.remove('animate'), { once: true });
   }
+  
   
   function resetFab() {
     fab.classList.remove('voice-mode');
